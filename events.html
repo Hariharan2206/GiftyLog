@@ -147,8 +147,8 @@
     }).join('');
   }
 
+  await loadAll();
   render();
-  if (!state.events.length && !state.gifts.length) { await loadAll(); render(); }
 
   /* ── Navigation ── */
   document.getElementById('events-grid').addEventListener('click', e => {

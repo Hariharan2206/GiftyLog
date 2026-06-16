@@ -146,7 +146,7 @@
 <script>
 (async () => {
   await initApp('gifts');
-  if (!state.gifts.length && !state.events.length) await loadAll();
+  await loadAll();
 
   let activeFilter = 'All';
   let photoCtrl;

@@ -45,76 +45,6 @@ async function hashPin(pin) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)));
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   CRYPTO — AES-GCM 256 via Web Crypto API
-   Falls back to plain JSON when not in a secure context (HTTP non-localhost).
-   ═══════════════════════════════════════════════════════════════ */
-let _key = null;
-let _cryptoAvailable = false;
-
-async function initCrypto() {
-  if (!window.isSecureContext || !crypto.subtle) {
-    _cryptoAvailable = false;
-    return;
-  }
-  try {
-    let saltB64 = localStorage.getItem('gl_salt');
-    if (!saltB64) {
-      const s = crypto.getRandomValues(new Uint8Array(16));
-      saltB64 = btoa(String.fromCharCode(...s));
-      localStorage.setItem('gl_salt', saltB64);
-    }
-    const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
-    const km = await crypto.subtle.importKey(
-      'raw', new TextEncoder().encode('giftylog-aes-2024'), 'PBKDF2', false, ['deriveKey']
-    );
-    _key = await crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-      km,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      ['encrypt', 'decrypt']
-    );
-    _cryptoAvailable = true;
-  } catch {
-    _cryptoAvailable = false;
-  }
-}
-
-async function _encrypt(plain) {
-  if (!_cryptoAvailable) return plain;
-  const iv  = crypto.getRandomValues(new Uint8Array(12));
-  const enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, _key, new TextEncoder().encode(plain));
-  return btoa(JSON.stringify({
-    iv: btoa(String.fromCharCode(...iv)),
-    d:  btoa(String.fromCharCode(...new Uint8Array(enc)))
-  }));
-}
-
-async function _decrypt(cipher) {
-  if (!_cryptoAvailable) return cipher;
-  try {
-    const { iv, d } = JSON.parse(atob(cipher));
-    const dec = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: Uint8Array.from(atob(iv), c => c.charCodeAt(0)) },
-      _key,
-      Uint8Array.from(atob(d), c => c.charCodeAt(0))
-    );
-    return new TextDecoder().decode(dec);
-  } catch { return null; }
-}
-
-async function lsSet(key, value) {
-  localStorage.setItem(key, await _encrypt(JSON.stringify(value)));
-}
-
-async function lsGet(key) {
-  const raw = localStorage.getItem(key);
-  if (!raw) return null;
-  const dec = await _decrypt(raw);
-  if (dec) { try { return JSON.parse(dec); } catch { return null; } }
-  try { return JSON.parse(raw); } catch { return null; }  // migration: plain JSON fallback
-}
 
 /* ═══════════════════════════════════════════════════════════════
    STATE
@@ -127,35 +57,22 @@ const state = {
   lockEnabled: false,
 };
 
-async function loadCachedState() {
-  const cache = await lsGet('gl_cache');
-  if (cache) {
-    state.events   = cache.events   || [];
-    state.gifts    = cache.gifts    || [];
-    state.settings = cache.settings || {};
-  }
-  state.webAppUrl = localStorage.getItem('giftylog_url')
-    || (typeof GIFTYLOG_WEB_APP_URL !== 'undefined' ? GIFTYLOG_WEB_APP_URL : 'PASTE_YOUR_SCRIPT_URL_HERE');
-  state.secret = typeof GIFTYLOG_SECRET !== 'undefined' ? GIFTYLOG_SECRET : '';
-  /* apply lock state from cached settings so PIN shows on every load after first sync */
-  if (state.settings.pin_hash) localStorage.setItem('giftylog_pin', state.settings.pin_hash);
-  if (state.settings.lock_enabled !== undefined) {
-    state.lockEnabled = state.settings.lock_enabled === '1';
-    localStorage.setItem('giftylog_lock', state.lockEnabled ? '1' : '0');
-  } else {
-    state.lockEnabled = localStorage.getItem('giftylog_lock') === '1';
-  }
-  /* seed PIN from config.js only if no server PIN is cached yet */
-  if (typeof GIFTYLOG_APP_PIN !== 'undefined' && GIFTYLOG_APP_PIN && !localStorage.getItem('giftylog_pin')) {
-    const hashed = await hashPin(String(GIFTYLOG_APP_PIN));
-    localStorage.setItem('giftylog_pin', hashed);
-    state.lockEnabled = true;
-    localStorage.setItem('giftylog_lock', '1');
-  }
-}
+/* clean up old encrypted cache keys from previous version */
+localStorage.removeItem('gl_cache');
+localStorage.removeItem('gl_salt');
 
-async function saveCache() {
-  await lsSet('gl_cache', { events: state.events, gifts: state.gifts, settings: state.settings });
+function loadCachedState() {
+  state.webAppUrl   = typeof GIFTYLOG_WEB_APP_URL !== 'undefined' ? GIFTYLOG_WEB_APP_URL : '';
+  state.secret      = typeof GIFTYLOG_SECRET      !== 'undefined' ? GIFTYLOG_SECRET      : '';
+  state.lockEnabled = localStorage.getItem('giftylog_lock') === '1';
+  /* seed PIN from config.js only if none stored yet */
+  if (typeof GIFTYLOG_APP_PIN !== 'undefined' && GIFTYLOG_APP_PIN && !localStorage.getItem('giftylog_pin')) {
+    hashPin(String(GIFTYLOG_APP_PIN)).then(h => {
+      localStorage.setItem('giftylog_pin', h);
+      localStorage.setItem('giftylog_lock', '1');
+      state.lockEnabled = true;
+    });
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -181,26 +98,21 @@ async function loadAll() {
     state.events   = data.events   || [];
     state.gifts    = data.gifts    || [];
     state.settings = data.settings || {};
-    await saveCache();
-    /* apply server settings — overwrites local so all devices stay in sync */
+    /* apply server PIN and lock state to localStorage */
     if ('pin_hash' in state.settings) {
-      if (state.settings.pin_hash) {
-        localStorage.setItem('giftylog_pin', state.settings.pin_hash);
-      } else {
-        localStorage.removeItem('giftylog_pin');
-      }
+      if (state.settings.pin_hash) localStorage.setItem('giftylog_pin', state.settings.pin_hash);
+      else localStorage.removeItem('giftylog_pin');
     }
     if ('lock_enabled' in state.settings) {
       const on = state.settings.lock_enabled === '1';
       state.lockEnabled = on;
       localStorage.setItem('giftylog_lock', on ? '1' : '0');
     }
-    /* first-load safety: if server says lock is on and session not unlocked, show PIN now */
+    /* show PIN overlay if lock is on and session not yet unlocked */
     if (state.lockEnabled && localStorage.getItem('giftylog_pin') && !sessionStorage.getItem('gl_unlocked')) {
       showPinOverlay();
       return true;
     }
-    showToast('Synced ✓', 'success');
     return true;
   } catch (err) {
     showToast(err.message, 'error');
@@ -598,8 +510,7 @@ async function initApp(activePage) {
   document.body.insertAdjacentHTML('beforeend', `
     <div id="gl-toast" class="gl-toast"></div>
     <div id="gl-sync"  class="gl-sync"><span class="spinner"></span> Syncing…</div>`);
-  await initCrypto();
-  await loadCachedState();
+  loadCachedState();
   renderSidebar(activePage);
   injectMoreSheet(activePage);
   injectDarkToggle();

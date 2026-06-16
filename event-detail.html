@@ -174,7 +174,7 @@
   if (!eventId) { location.href = 'events.html'; return; }
 
   /* ensure data */
-  if (!state.events.length) await loadAll();
+  await loadAll();
 
   let evt = state.events.find(e => e.id === eventId);
   if (!evt) { showToast('Event not found', 'error'); setTimeout(() => location.href = 'events.html', 1500); return; }
