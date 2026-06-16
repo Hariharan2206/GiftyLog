@@ -130,13 +130,21 @@ const state = {
 async function loadCachedState() {
   const cache = await lsGet('gl_cache');
   if (cache) {
-    state.events = cache.events || [];
-    state.gifts  = cache.gifts  || [];
+    state.events   = cache.events   || [];
+    state.gifts    = cache.gifts    || [];
+    state.settings = cache.settings || {};
   }
-  state.webAppUrl   = localStorage.getItem('giftylog_url')
+  state.webAppUrl = localStorage.getItem('giftylog_url')
     || (typeof GIFTYLOG_WEB_APP_URL !== 'undefined' ? GIFTYLOG_WEB_APP_URL : 'PASTE_YOUR_SCRIPT_URL_HERE');
   state.secret = typeof GIFTYLOG_SECRET !== 'undefined' ? GIFTYLOG_SECRET : '';
-  state.lockEnabled = localStorage.getItem('giftylog_lock') === '1';
+  /* apply lock state from cached settings so PIN shows on every load after first sync */
+  if (state.settings.pin_hash) localStorage.setItem('giftylog_pin', state.settings.pin_hash);
+  if (state.settings.lock_enabled !== undefined) {
+    state.lockEnabled = state.settings.lock_enabled === '1';
+    localStorage.setItem('giftylog_lock', state.lockEnabled ? '1' : '0');
+  } else {
+    state.lockEnabled = localStorage.getItem('giftylog_lock') === '1';
+  }
   /* seed PIN from config.js only if no server PIN is cached yet */
   if (typeof GIFTYLOG_APP_PIN !== 'undefined' && GIFTYLOG_APP_PIN && !localStorage.getItem('giftylog_pin')) {
     const hashed = await hashPin(String(GIFTYLOG_APP_PIN));
@@ -147,7 +155,7 @@ async function loadCachedState() {
 }
 
 async function saveCache() {
-  await lsSet('gl_cache', { events: state.events, gifts: state.gifts });
+  await lsSet('gl_cache', { events: state.events, gifts: state.gifts, settings: state.settings });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -186,6 +194,11 @@ async function loadAll() {
       const on = state.settings.lock_enabled === '1';
       state.lockEnabled = on;
       localStorage.setItem('giftylog_lock', on ? '1' : '0');
+    }
+    /* first-load safety: if server says lock is on and session not unlocked, show PIN now */
+    if (state.lockEnabled && localStorage.getItem('giftylog_pin') && !sessionStorage.getItem('gl_unlocked')) {
+      showPinOverlay();
+      return true;
     }
     showToast('Synced ✓', 'success');
     return true;
