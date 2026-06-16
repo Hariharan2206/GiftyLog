@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4F46E5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>GiftyLog 🎁</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    /* ── Variables ─────────────────────────────────────────────── */
+    :root {
+      --indigo:       #4F46E5;
+      --indigo-dark:  #3730A3;
+      --indigo-light: #818CF8;
+      --emerald:      #10B981;
+      --emerald-dark: #059669;
+      --rose:         #F43F5E;
+      --amber:        #F59E0B;
+      --surface:      #F8FAFC;
+      --card:         #FFFFFF;
+      --border:       #E2E8F0;
+      --text:         #1E293B;
+      --text-muted:   #64748B;
+      --sidebar-w:    240px;
+      --radius:       12px;
+      --shadow:       0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+      --shadow-lg:    0 8px 32px rgba(0,0,0,.12);
+    }
+
+    /* ── Reset ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--surface); color: var(--text); }
+    button { cursor: pointer; border: none; background: none; font: inherit; }
+    input, textarea, select { font: inherit; }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── App Shell ─────────────────────────────────────────────── */
+    #app { display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ───────────────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--indigo);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      overflow: hidden;
+      z-index: 100;
+    }
+    .sidebar-brand {
+      padding: 24px 20px 20px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.3px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      color: rgba(255,255,255,.75);
+      font-size: .9rem;
+      font-weight: 500;
+      transition: background .15s, color .15s;
+      user-select: none;
+    }
+    .nav-item:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .nav-item.active { background: #fff; color: var(--indigo); }
+    .nav-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+    .sidebar-bottom {
+      padding: 10px;
+      border-top: 1px solid rgba(255,255,255,.12);
+    }
+
+    /* ── Main Content ──────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .view { display: none; flex-direction: column; min-height: 100%; padding: 28px 32px; }
+    .view.active { display: flex; }
+
+    /* ── Page Header ───────────────────────────────────────────── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .page-title { font-size: 1.6rem; font-weight: 700; }
+    .page-subtitle { font-size: .85rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Buttons ───────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: .875rem;
+      font-weight: 600;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:hover { opacity: .9; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary   { background: var(--indigo); color: #fff; }
+    .btn-emerald   { background: var(--emerald); color: #fff; }
+    .btn-rose      { background: var(--rose); color: #fff; }
+    .btn-ghost     { background: var(--border); color: var(--text); }
+    .btn-sm        { padding: 6px 12px; font-size: .8rem; border-radius: 6px; }
+    .btn:disabled  { opacity: .55; cursor: not-allowed; }
+
+    /* ── Summary Cards ─────────────────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .summary-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .summary-card .card-label { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+    .summary-card .card-value { font-size: 2rem; font-weight: 800; }
+    .summary-card .card-icon  { font-size: 1.6rem; margin-bottom: 4px; }
+    .card-indigo { border-top: 3px solid var(--indigo); }
+    .card-emerald{ border-top: 3px solid var(--emerald); }
+    .card-amber  { border-top: 3px solid var(--amber); }
+
+    /* ── Section Titles ────────────────────────────────────────── */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    /* ── Activity Feed ─────────────────────────────────────────── */
+    .activity-list { display: flex; flex-direction: column; gap: 10px; }
+    .activity-item {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .activity-emoji { font-size: 1.5rem; flex-shrink: 0; }
+    .activity-body  { flex: 1; }
+    .activity-name  { font-weight: 600; font-size: .9rem; }
+    .activity-meta  { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
+    .activity-time  { font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
+
+    /* ── Event Cards Grid ──────────────────────────────────────── */
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .event-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: box-shadow .2s, transform .15s;
+      border: 2px solid transparent;
+    }
+    .event-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); border-color: var(--indigo-light); }
+    .event-card-name  { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+    .event-card-meta  { font-size: .8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 3px; }
+    .event-card-meta span { display: flex; align-items: center; gap: 5px; }
+    .event-card-footer{ margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .event-gift-count { font-size: .8rem; font-weight: 600; color: var(--indigo); }
+
+    /* ── Event Detail View ─────────────────────────────────────── */
+    #view-event-detail { padding: 28px 32px; }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--indigo);
+      margin-bottom: 16px;
+      padding: 6px 0;
+    }
+    .back-btn:hover { opacity: .75; }
+    .event-detail-header {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .event-detail-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 8px; }
+    .event-detail-meta  { display: flex; flex-wrap: wrap; gap: 16px; font-size: .85rem; color: var(--text-muted); }
+    .event-detail-meta span { display: flex; align-items: center; gap: 5px; }
+
+    /* ── Filter Chips ──────────────────────────────────────────── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 600;
+      background: var(--card);
+      border: 2px solid var(--border);
+      color: var(--text-muted);
+      transition: all .15s;
+    }
+    .chip.active, .chip:hover { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+
+    /* ── Search Bar ────────────────────────────────────────────── */
+    .search-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .search-wrap .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 1rem;
+    }
+    .search-input {
+      width: 100%;
+      padding: 10px 12px 10px 38px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .search-input:focus { border-color: var(--indigo); }
+
+    /* ── Gift Cards Grid ───────────────────────────────────────── */
+    .gifts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .gift-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      gap: 14px;
+    }
+    .gift-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .gift-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .gift-info { flex: 1; min-width: 0; }
+    .gift-name  { font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gift-type-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 700;
+      margin: 4px 0 6px;
+    }
+    .gift-meta  { font-size: .78rem; color: var(--text-muted); line-height: 1.6; }
+    .gift-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+    /* Gift type badge colours */
+    .badge-Cash        { background: #D1FAE5; color: #065F46; }
+    .badge-Kind        { background: #EDE9FE; color: #4C1D95; }
+    .badge-Gold        { background: #FEF3C7; color: #92400E; }
+    .badge-Silver      { background: #F1F5F9; color: #334155; }
+    .badge-Electronics { background: #DBEAFE; color: #1E40AF; }
+    .badge-Other       { background: #FCE7F3; color: #9D174D; }
+
+    /* ── Empty State ───────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .empty-icon { font-size: 3.5rem; margin-bottom: 12px; }
+    .empty-state p { font-size: .9rem; }
+
+    /* ── Gifts Master View ─────────────────────────────────────── */
+    .gift-list-row {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .gift-list-event-tag {
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--indigo);
+      background: #EEF2FF;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    /* ── Settings ──────────────────────────────────────────────── */
+    .settings-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      max-width: 520px;
+      margin-bottom: 20px;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .settings-label { font-weight: 600; font-size: .95rem; }
+    .settings-desc  { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* Toggle Switch */
+    .toggle { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: var(--border);
+      border-radius: 999px;
+      transition: background .2s;
+      cursor: pointer;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle input:checked + .toggle-slider { background: var(--indigo); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+    /* PIN dots */
+    .pin-setup {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .pin-setup-label { font-size: .85rem; color: var(--text-muted); margin-bottom: 10px; }
+    .pin-input-row { display: flex; gap: 8px; align-items: center; }
+    .pin-input {
+      width: 130px;
+      padding: 10px 14px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 1.1rem;
+      letter-spacing: .2em;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .pin-input:focus { border-color: var(--indigo); }
+
+    /* ── Modals ────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(15,23,42,.45);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--card);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(16px);
+      transition: transform .2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 0;
+      margin-bottom: 20px;
+    }
+    .modal-title { font-size: 1.15rem; font-weight: 700; }
+    .modal-close {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      color: var(--text-muted);
+      transition: background .15s;
+    }
+    .modal-close:hover { background: var(--border); }
+    .modal-body { padding: 0 24px 24px; }
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 24px;
+    }
+
+    /* Form Fields */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: .82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .form-control:focus { border-color: var(--indigo); background: #fff; }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+    select.form-control { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2364748B' d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 32px; }
+
+    /* Photo Preview */
+    .photo-preview {
+      width: 100%;
+      height: 140px;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 2px dashed var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .photo-preview:hover { border-color: var(--indigo); }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-preview-placeholder { color: var(--text-muted); text-align: center; font-size: .85rem; }
+    .photo-preview-placeholder span { font-size: 2rem; display: block; margin-bottom: 4px; }
+
+    /* ── PIN Keypad Overlay ─────────────────────────────────────── */
+    #pin-overlay {
+      position: fixed; inset: 0;
+      background: var(--indigo);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+    }
+    #pin-overlay.hidden { display: none; }
+    .pin-overlay-brand { color: rgba(255,255,255,.9); font-size: 1.6rem; font-weight: 800; }
+    .pin-overlay-prompt { color: rgba(255,255,255,.7); font-size: .9rem; }
+    .pin-dots {
+      display: flex; gap: 14px;
+    }
+    .pin-dot {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.6);
+      background: transparent;
+      transition: background .15s;
+    }
+    .pin-dot.filled { background: #fff; border-color: #fff; }
+    .pin-keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 70px);
+      gap: 12px;
+    }
+    .key-btn {
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.15);
+      color: #fff;
+      font-size: 1.4rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .1s, transform .1s;
+      user-select: none;
+    }
+    .key-btn:hover  { background: rgba(255,255,255,.25); }
+    .key-btn:active { transform: scale(.92); }
+    .key-btn.empty  { visibility: hidden; }
+    .pin-error { color: #FCA5A5; font-size: .85rem; font-weight: 600; min-height: 20px; }
+
+    /* ── Toast ─────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--text);
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 999px;
+      font-size: .875rem;
+      font-weight: 600;
+      z-index: 8888;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { background: var(--emerald); }
+    #toast.error   { background: var(--rose); }
+
+    /* ── Spinner ───────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Sync badge ────────────────────────────────────────────── */
+    #sync-badge {
+      display: none;
+      position: fixed;
+      top: 14px; right: 18px;
+      background: var(--amber);
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 999px;
+      z-index: 400;
+      align-items: center;
+      gap: 6px;
+    }
+    #sync-badge.show { display: flex; }
+
+    /* ── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      #app { flex-direction: column; }
+      #sidebar {
+        width: 100%;
+        min-width: 0;
+        flex-direction: row;
+        height: auto;
+        order: 2;
+        padding: 0;
+      }
+      .sidebar-brand { display: none; }
+      .sidebar-nav {
+        flex-direction: row;
+        padding: 6px 8px;
+        gap: 2px;
+        overflow-x: auto;
+      }
+      .sidebar-nav::-webkit-scrollbar { display: none; }
+      .sidebar-bottom {
+        border-top: none;
+        border-left: 1px solid rgba(255,255,255,.12);
+        padding: 6px 8px;
+        display: flex;
+        align-items: center;
+      }
+      .nav-item { flex-direction: column; gap: 2px; padding: 6px 10px; font-size: .7rem; }
+      .nav-icon { font-size: .95rem; width: auto; }
+      #main { order: 1; height: calc(100vh - 68px); }
+      .view { padding: 18px 16px; }
+      #view-event-detail { padding: 18px 16px; }
+      .page-title { font-size: 1.3rem; }
+    }
+
+    @media (max-width: 480px) {
+      .cards-grid { grid-template-columns: 1fr 1fr; }
+      .events-grid { grid-template-columns: 1fr; }
+      .gifts-grid  { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── PIN Overlay ──────────────────────────────────────────────── -->
+<div id="pin-overlay" class="hidden">
+  <div class="pin-overlay-brand">GiftyLog 🎁</div>
+  <div class="pin-overlay-prompt">Enter your 4-digit PIN</div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="d0"></div>
+    <div class="pin-dot" id="d1"></div>
+    <div class="pin-dot" id="d2"></div>
+    <div class="pin-dot" id="d3"></div>
+  </div>
+  <div class="pin-keypad">
+    <button class="key-btn" data-key="1">1</button>
+    <button class="key-btn" data-key="2">2</button>
+    <button class="key-btn" data-key="3">3</button>
+    <button class="key-btn" data-key="4">4</button>
+    <button class="key-btn" data-key="5">5</button>
+    <button class="key-btn" data-key="6">6</button>
+    <button class="key-btn" data-key="7">7</button>
+    <button class="key-btn" data-key="8">8</button>
+    <button class="key-btn" data-key="9">9</button>
+    <button class="key-btn empty"></button>
+    <button class="key-btn" data-key="0">0</button>
+    <button class="key-btn" data-key="back">⌫</button>
+  </div>
+  <div class="pin-error" id="pin-error"></div>
+</div>
+
+<!-- ── Sync Badge ──────────────────────────────────────────────── -->
+<div id="sync-badge"><span class="spinner"></span> Syncing…</div>
+
+<!-- ── Toast ───────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── App Shell ─────────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="sidebar-brand">GiftyLog 🎁</div>
+    <div class="sidebar-nav">
+      <button class="nav-item active" data-view="overview">
+        <span class="nav-icon">📊</span> Overview
+      </button>
+      <button class="nav-item" data-view="events">
+        <span class="nav-icon">🎉</span> Events
+      </button>
+      <button class="nav-item" data-view="gifts">
+        <span class="nav-icon">🎁</span> Gifts
+      </button>
+    </div>
+    <div class="sidebar-bottom">
+      <button class="nav-item" data-view="settings" style="width:100%">
+        <span class="nav-icon">⚙️</span> Settings
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main id="main">
+
+    <!-- Overview -->
+    <section id="view-overview" class="view active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Overview</div>
+          <div class="page-subtitle">Your gift log at a glance</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-refresh">🔄 Refresh</button>
+      </div>
+      <div class="cards-grid">
+        <div class="summary-card card-indigo">
+          <div class="card-icon">🎉</div>
+          <div class="card-label">Total Events</div>
+          <div class="card-value" id="stat-events">—</div>
+        </div>
+        <div class="summary-card card-emerald">
+          <div class="card-icon">🎁</div>
+          <div class="card-label">Total Gifts</div>
+          <div class="card-value" id="stat-gifts">—</div>
+        </div>
+        <div class="summary-card card-amber">
+          <div class="card-icon">💰</div>
+          <div class="card-label">Total Cash</div>
+          <div class="card-value" id="stat-cash">—</div>
+        </div>
+      </div>
+      <div class="section-title">Recent Activity</div>
+      <div class="activity-list" id="activity-list">
+        <div class="empty-state"><div class="empty-icon">✨</div><p>No activity yet.</p></div>
+      </div>
+    </section>
+
+    <!-- Events -->
+    <section id="view-events" class="view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Events</div>
+          <div class="page-subtitle">All your logged events</div>
+        </div>
+        <button class="btn btn-emerald" id="btn-add-event">＋ Add Event</button>
+      </div>
+      <div class="events-grid" id="events-grid">
+        <div class="empty-state"><div class="empty-icon">🎉</div><p>No events yet. Add one!</p></div>
+      </div>
+    </section>
+
+    <!-- Event Detail (nested) -->
+    <section id="view-event-detail" style="display:none; flex-direction:column; min-height:100%; padding:28px 32px;">
+      <button class="back-btn" id="btn-back-events">← Back to Events</button>
+      <div class="event-detail-header" id="event-detail-header"></div>
+      <div class="page-header" style="margin-bottom:12px;">
+        <div class="section-title" style="margin:0">Gifts</div>
+        <button class="btn btn-emerald btn-sm" id="btn-add-gift">＋ Add Gift</button>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="detail-search" placeholder="Search gifts…" type="search" />
+      </div>
+      <div class="filter-bar" id="detail-filter-bar"></div>
+      <div class="gifts-grid" id="detail-gifts-grid"></div>
+    </section>
+
+    <!-- Gifts Master -->
+    <section id="view-gifts" class="view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">All Gifts</div>
+          <div class="page-subtitle">Every gift across all events</div>
+        </div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="global-search" placeholder="Search by gifter, type, or event…" type="search" />
+      </div>
+      <div id="gifts-master-list"></div>
+    </section>
+
+    <!-- Settings -->
+    <section id="view-settings" class="view">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Settings</div>
+          <div class="page-subtitle">App preferences & security</div>
+        </div>
+      </div>
+
+      <!-- Backend URL -->
+      <div class="settings-card">
+        <div class="section-title" style="margin-bottom:14px">Backend Connection</div>
+        <div class="form-group">
+          <label class="form-label">Google Apps Script Web App URL</label>
+          <input class="form-control" id="setting-url" type="url" placeholder="https://script.google.com/macros/s/…/exec" />
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-save-url">Save URL</button>
+      </div>
+
+      <!-- App Lock -->
+      <div class="settings-card">
+        <div class="section-title" style="margin-bottom:14px">Security</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">App Lock</div>
+            <div class="settings-desc">Require a 4-digit PIN to open the app</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-lock" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="pin-setup" id="pin-setup-section" style="display:none">
+          <div class="pin-setup-label">Set a 4-digit PIN</div>
+          <div class="pin-input-row">
+            <input class="pin-input form-control" id="pin-new" type="password" maxlength="4" inputmode="numeric" pattern="\d{4}" placeholder="••••" style="width:120px;letter-spacing:.3em" />
+            <button class="btn btn-primary btn-sm" id="btn-save-pin">Save PIN</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Actions -->
+      <div class="settings-card">
+        <div class="section-title" style="margin-bottom:14px">Data</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" id="btn-export-csv">⬇ Export CSV</button>
+          <button class="btn btn-rose btn-sm" id="btn-clear-cache">🗑 Clear Local Cache</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ── Add/Edit Event Modal ─────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-event-overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-event-title">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-event-title">Add Event</div>
+      <button class="modal-close" data-close="modal-event-overlay">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="event-id" />
+      <div class="form-group">
+        <label class="form-label">Event Name *</label>
+        <input class="form-control" id="event-name" type="text" placeholder="e.g. Wedding Reception" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Venue</label>
+        <input class="form-control" id="event-venue" type="text" placeholder="e.g. Grand Ballroom" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Place</label>
+        <input class="form-control" id="event-place" type="text" placeholder="e.g. Chennai, India" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-control" id="event-date" type="date" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="modal-event-overlay">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-event">Save Event</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add/Edit Gift Modal ──────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-gift-overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-gift-title">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-gift-title">Add Gift</div>
+      <button class="modal-close" data-close="modal-gift-overlay">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="gift-id" />
+      <input type="hidden" id="gift-event-id" />
+      <div class="form-group">
+        <label class="form-label">Gifter Name *</label>
+        <input class="form-control" id="gift-gifter" type="text" placeholder="Full name" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <textarea class="form-control" id="gift-address" placeholder="Street, City, State…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gift Type *</label>
+        <select class="form-control" id="gift-type">
+          <option value="">Select type…</option>
+          <option value="Cash">Cash</option>
+          <option value="Kind">Kind</option>
+          <option value="Gold">Gold</option>
+          <option value="Silver">Silver</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quantity</label>
+        <input class="form-control" id="gift-quantity" type="number" min="0" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Photo (Optional)</label>
+        <div class="photo-preview" id="photo-preview" title="Click to upload or capture photo">
+          <div class="photo-preview-placeholder">
+            <span>📷</span>Tap to upload / capture
+          </div>
+        </div>
+        <input type="file" id="gift-photo-input" accept="image/*" capture="environment" style="display:none" />
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" id="btn-upload-photo">📁 Upload</button>
+          <button class="btn btn-ghost btn-sm" id="btn-camera-photo">📷 Camera</button>
+          <button class="btn btn-rose btn-sm" id="btn-clear-photo" style="display:none">✕ Remove</button>
+        </div>
+        <input type="hidden" id="gift-photo-b64" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="modal-gift-overlay">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-gift">Save Gift</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Confirm Modal ────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-confirm-overlay">
+  <div class="modal" role="dialog" style="max-width:380px">
+    <div class="modal-header">
+      <div class="modal-title">Confirm Delete</div>
+      <button class="modal-close" data-close="modal-confirm-overlay">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-msg" style="color:var(--text-muted);font-size:.9rem;line-height:1.6"></p>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" data-close="modal-confirm-overlay">Cancel</button>
+        <button class="btn btn-rose" id="btn-confirm-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   GIFTYLOG — Main Application Script
+   ═══════════════════════════════════════════════════════════════════ */
+
+const WEB_APP_URL = "PASTE_YOUR_SCRIPT_URL_HERE";
+
+/* ── Helpers ──────────────────────────────────────────────────── */
+const uuid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+const now  = () => new Date().toISOString();
+const fmt  = iso => iso ? new Date(iso).toLocaleString() : '—';
+const fmtDate = iso => iso ? new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) : '—';
+const esc  = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+const GIFT_EMOJI = { Cash:'💵', Kind:'🎀', Gold:'🥇', Silver:'🥈', Electronics:'📱', Other:'🎁' };
+
+/* ── State ────────────────────────────────────────────────────── */
+let state = {
+  events: [],
+  gifts:  [],
+  settings: {
+    webAppUrl: localStorage.getItem('giftylog_url') || WEB_APP_URL,
+    lockEnabled: localStorage.getItem('giftylog_lock') === '1',
+  },
+  activeView: 'overview',
+  activeEventId: null,
+  detailFilter: 'All',
+  confirmCallback: null,
+};
+
+/* ── Toast ────────────────────────────────────────────────────── */
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 2600);
+}
+
+/* ── Sync Badge ───────────────────────────────────────────────── */
+function setSyncing(on) {
+  document.getElementById('sync-badge').classList.toggle('show', on);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   API LAYER
+   ═══════════════════════════════════════════════════════════════ */
+async function apiCall(payload) {
+  const url = state.settings.webAppUrl;
+  if (!url || url === 'PASTE_YOUR_SCRIPT_URL_HERE') {
+    throw new Error('No backend URL configured. Set it in Settings.');
+  }
+  setSyncing(true);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    return json;
+  } finally {
+    setSyncing(false);
+  }
+}
+
+async function loadAll() {
+  try {
+    const data = await apiCall({ action: 'getAll' });
+    state.events = data.events || [];
+    state.gifts  = data.gifts  || [];
+    saveCache();
+    renderCurrentView();
+    showToast('Data synced ✓', 'success');
+  } catch (err) {
+    const cached = loadCache();
+    if (cached) {
+      state.events = cached.events || [];
+      state.gifts  = cached.gifts  || [];
+      renderCurrentView();
+      showToast('Offline — showing cached data', '');
+    } else {
+      showToast(err.message, 'error');
+    }
+  }
+}
+
+async function saveEvent(evt) {
+  const data = await apiCall({ action: 'saveEvent', event: evt });
+  const idx = state.events.findIndex(e => e.id === evt.id);
+  if (idx >= 0) state.events[idx] = evt; else state.events.push(evt);
+  saveCache();
+  return data;
+}
+
+async function deleteEvent(id) {
+  await apiCall({ action: 'deleteEvent', id });
+  state.events = state.events.filter(e => e.id !== id);
+  state.gifts  = state.gifts.filter(g => g.eventId !== id);
+  saveCache();
+}
+
+async function saveGift(gift) {
+  const data = await apiCall({ action: 'saveGift', gift });
+  const idx = state.gifts.findIndex(g => g.id === gift.id);
+  if (idx >= 0) state.gifts[idx] = gift; else state.gifts.push(gift);
+  saveCache();
+  return data;
+}
+
+async function deleteGift(id) {
+  await apiCall({ action: 'deleteGift', id });
+  state.gifts = state.gifts.filter(g => g.id !== id);
+  saveCache();
+}
+
+/* ── Cache ──────────────────────────────────────────────────── */
+function saveCache() { localStorage.setItem('giftylog_cache', JSON.stringify({ events: state.events, gifts: state.gifts })); }
+function loadCache() { try { return JSON.parse(localStorage.getItem('giftylog_cache')); } catch { return null; } }
+
+/* ═══════════════════════════════════════════════════════════════
+   PHOTO COMPRESSION
+   ═══════════════════════════════════════════════════════════════ */
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 400;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else       { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER — OVERVIEW
+   ═══════════════════════════════════════════════════════════════ */
+function renderOverview() {
+  const totalCash = state.gifts
+    .filter(g => g.giftType === 'Cash')
+    .reduce((s, g) => s + (parseFloat(g.quantity) || 0), 0);
+
+  document.getElementById('stat-events').textContent = state.events.length;
+  document.getElementById('stat-gifts').textContent  = state.gifts.length;
+  document.getElementById('stat-cash').textContent   = '₹' + totalCash.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+  const recent = [...state.gifts]
+    .sort((a, b) => new Date(b.updatedDateTime) - new Date(a.updatedDateTime))
+    .slice(0, 5);
+
+  const list = document.getElementById('activity-list');
+  if (!recent.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">✨</div><p>No activity yet.</p></div>`;
+    return;
+  }
+  list.innerHTML = recent.map(g => {
+    const evt = state.events.find(e => e.id === g.eventId);
+    const emoji = GIFT_EMOJI[g.giftType] || '🎁';
+    return `
+      <div class="activity-item">
+        <div class="activity-emoji">${emoji}</div>
+        <div class="activity-body">
+          <div class="activity-name">${esc(g.gifterName)}</div>
+          <div class="activity-meta">${esc(g.giftType)}${g.quantity ? ' · ' + g.quantity : ''} · ${esc(evt ? evt.eventName : 'Unknown event')}</div>
+        </div>
+        <div class="activity-time">${fmt(g.updatedDateTime)}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER — EVENTS
+   ═══════════════════════════════════════════════════════════════ */
+function renderEvents() {
+  const grid = document.getElementById('events-grid');
+  if (!state.events.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div><p>No events yet. Add one!</p></div>`;
+    return;
+  }
+  grid.innerHTML = state.events.map(evt => {
+    const giftCount = state.gifts.filter(g => g.eventId === evt.id).length;
+    return `
+      <div class="event-card" data-event-id="${esc(evt.id)}">
+        <div class="event-card-name">${esc(evt.eventName)}</div>
+        <div class="event-card-meta">
+          ${evt.venue ? `<span>🏛 ${esc(evt.venue)}</span>` : ''}
+          ${evt.place ? `<span>📍 ${esc(evt.place)}</span>` : ''}
+          ${evt.date  ? `<span>📅 ${fmtDate(evt.date)}</span>` : ''}
+        </div>
+        <div class="event-card-footer">
+          <span class="event-gift-count">🎁 ${giftCount} gift${giftCount !== 1 ? 's' : ''}</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" data-edit-event="${esc(evt.id)}" onclick="event.stopPropagation()">✏️</button>
+            <button class="btn btn-rose btn-sm"  data-del-event="${esc(evt.id)}"  onclick="event.stopPropagation()">🗑️</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER — EVENT DETAIL
+   ═══════════════════════════════════════════════════════════════ */
+function renderEventDetail() {
+  const evt = state.events.find(e => e.id === state.activeEventId);
+  if (!evt) { showView('events'); return; }
+
+  document.getElementById('event-detail-header').innerHTML = `
+    <div class="event-detail-title">${esc(evt.eventName)}</div>
+    <div class="event-detail-meta">
+      ${evt.venue ? `<span>🏛 ${esc(evt.venue)}</span>` : ''}
+      ${evt.place ? `<span>📍 ${esc(evt.place)}</span>` : ''}
+      ${evt.date  ? `<span>📅 ${fmtDate(evt.date)}</span>` : ''}
+    </div>`;
+
+  const searchQ  = (document.getElementById('detail-search').value || '').toLowerCase();
+  const filterT  = state.detailFilter;
+
+  const types = ['All', ...new Set(state.gifts.filter(g => g.eventId === evt.id).map(g => g.giftType))];
+  document.getElementById('detail-filter-bar').innerHTML = types.map(t =>
+    `<button class="chip${filterT === t ? ' active' : ''}" data-chip="${esc(t)}">${t}</button>`
+  ).join('');
+
+  let gifts = state.gifts.filter(g => g.eventId === evt.id);
+  if (filterT !== 'All') gifts = gifts.filter(g => g.giftType === filterT);
+  if (searchQ) gifts = gifts.filter(g =>
+    g.gifterName.toLowerCase().includes(searchQ) ||
+    (g.giftType || '').toLowerCase().includes(searchQ)
+  );
+
+  const grid = document.getElementById('detail-gifts-grid');
+  if (!gifts.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🎁</div><p>No gifts match your filter.</p></div>`;
+    return;
+  }
+  grid.innerHTML = gifts.map(g => giftCardHTML(g)).join('');
+}
+
+function giftCardHTML(g) {
+  const emoji = GIFT_EMOJI[g.giftType] || '🎁';
+  const thumb = g.photo
+    ? `<img src="${g.photo}" alt="gift photo" loading="lazy" />`
+    : emoji;
+  return `
+    <div class="gift-card">
+      <div class="gift-thumb">${thumb}</div>
+      <div class="gift-info">
+        <div class="gift-name">${esc(g.gifterName)}</div>
+        <span class="gift-type-badge badge-${esc(g.giftType || 'Other')}">${esc(g.giftType || 'Other')}</span>
+        <div class="gift-meta">
+          ${g.quantity ? `<div>Qty: <b>${g.quantity}</b></div>` : ''}
+          ${g.address  ? `<div>📍 ${esc(g.address)}</div>` : ''}
+          <div>🕐 ${fmt(g.updatedDateTime)}</div>
+        </div>
+        <div class="gift-actions">
+          <button class="btn btn-ghost btn-sm" data-edit-gift="${esc(g.id)}">✏️ Edit</button>
+          <button class="btn btn-rose  btn-sm" data-del-gift="${esc(g.id)}">🗑️</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER — GIFTS MASTER
+   ═══════════════════════════════════════════════════════════════ */
+function renderGiftsMaster() {
+  const q = (document.getElementById('global-search').value || '').toLowerCase();
+  let gifts = state.gifts;
+  if (q) {
+    gifts = gifts.filter(g => {
+      const evt = state.events.find(e => e.id === g.eventId);
+      return (
+        (g.gifterName || '').toLowerCase().includes(q) ||
+        (g.giftType   || '').toLowerCase().includes(q) ||
+        (evt ? evt.eventName.toLowerCase().includes(q) : false)
+      );
+    });
+  }
+  gifts = [...gifts].sort((a, b) => new Date(b.updatedDateTime) - new Date(a.updatedDateTime));
+
+  const list = document.getElementById('gifts-master-list');
+  if (!gifts.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>No gifts found.</p></div>`;
+    return;
+  }
+  list.innerHTML = gifts.map(g => {
+    const evt   = state.events.find(e => e.id === g.eventId);
+    const emoji = GIFT_EMOJI[g.giftType] || '🎁';
+    const thumb = g.photo
+      ? `<img src="${g.photo}" alt="gift photo" loading="lazy" style="width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0" />`
+      : `<div style="width:48px;height:48px;border-radius:8px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0">${emoji}</div>`;
+    return `
+      <div class="gift-list-row">
+        ${thumb}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.9rem">${esc(g.gifterName)}</div>
+          <div style="display:flex;gap:8px;align-items:center;margin:3px 0">
+            <span class="gift-type-badge badge-${esc(g.giftType || 'Other')}">${esc(g.giftType || 'Other')}</span>
+            ${evt ? `<span class="gift-list-event-tag">${esc(evt.eventName)}</span>` : ''}
+          </div>
+          <div style="font-size:.78rem;color:var(--text-muted)">${g.quantity ? 'Qty: ' + g.quantity + ' · ' : ''}${fmt(g.updatedDateTime)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm" data-edit-gift="${esc(g.id)}">✏️</button>
+          <button class="btn btn-rose  btn-sm" data-del-gift="${esc(g.id)}">🗑️</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER — SETTINGS
+   ═══════════════════════════════════════════════════════════════ */
+function renderSettings() {
+  document.getElementById('setting-url').value = state.settings.webAppUrl !== 'PASTE_YOUR_SCRIPT_URL_HERE' ? state.settings.webAppUrl : '';
+  const lockEl = document.getElementById('toggle-lock');
+  lockEl.checked = state.settings.lockEnabled;
+  document.getElementById('pin-setup-section').style.display = state.settings.lockEnabled ? 'block' : 'none';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VIEW ROUTER
+   ═══════════════════════════════════════════════════════════════ */
+function showView(view) {
+  state.activeView = view;
+
+  // Hide event detail panel
+  document.getElementById('view-event-detail').style.display = 'none';
+
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const target = document.getElementById(`view-${view}`);
+  if (target) target.classList.add('active');
+
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.view === view);
+  });
+
+  renderCurrentView();
+}
+
+function showEventDetail(eventId) {
+  state.activeEventId = eventId;
+  state.detailFilter  = 'All';
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-event-detail').style.display = 'flex';
+  document.getElementById('detail-search').value = '';
+  renderEventDetail();
+}
+
+function renderCurrentView() {
+  switch (state.activeView) {
+    case 'overview': renderOverview();    break;
+    case 'events':   renderEvents();      break;
+    case 'gifts':    renderGiftsMaster(); break;
+    case 'settings': renderSettings();    break;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODAL HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function openEventModal(evt = null) {
+  document.getElementById('event-id').value    = evt ? evt.id    : '';
+  document.getElementById('event-name').value  = evt ? evt.eventName : '';
+  document.getElementById('event-venue').value = evt ? evt.venue : '';
+  document.getElementById('event-place').value = evt ? evt.place : '';
+  document.getElementById('event-date').value  = evt ? evt.date  : '';
+  document.getElementById('modal-event-title').textContent = evt ? 'Edit Event' : 'Add Event';
+  openModal('modal-event-overlay');
+}
+
+function openGiftModal(gift = null, eventId = null) {
+  clearPhotoPreview();
+  document.getElementById('gift-id').value       = gift ? gift.id      : '';
+  document.getElementById('gift-event-id').value = gift ? gift.eventId : (eventId || state.activeEventId || '');
+  document.getElementById('gift-gifter').value   = gift ? gift.gifterName : '';
+  document.getElementById('gift-address').value  = gift ? gift.address    : '';
+  document.getElementById('gift-type').value     = gift ? gift.giftType   : '';
+  document.getElementById('gift-quantity').value = gift ? gift.quantity   : '';
+  document.getElementById('gift-photo-b64').value= gift ? gift.photo      : '';
+  document.getElementById('modal-gift-title').textContent = gift ? 'Edit Gift' : 'Add Gift';
+  if (gift && gift.photo) setPhotoPreview(gift.photo);
+  openModal('modal-gift-overlay');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PHOTO HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+function setPhotoPreview(b64) {
+  const prev = document.getElementById('photo-preview');
+  prev.innerHTML = `<img src="${b64}" alt="preview" />`;
+  document.getElementById('btn-clear-photo').style.display = 'inline-flex';
+}
+function clearPhotoPreview() {
+  document.getElementById('photo-preview').innerHTML = `
+    <div class="photo-preview-placeholder"><span>📷</span>Tap to upload / capture</div>`;
+  document.getElementById('gift-photo-b64').value = '';
+  document.getElementById('btn-clear-photo').style.display = 'none';
+  document.getElementById('gift-photo-input').value = '';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SAVE HANDLERS
+   ═══════════════════════════════════════════════════════════════ */
+async function handleSaveEvent() {
+  const name = document.getElementById('event-name').value.trim();
+  if (!name) { showToast('Event name is required', 'error'); return; }
+
+  const evt = {
+    id:        document.getElementById('event-id').value || uuid(),
+    eventName: name,
+    venue:     document.getElementById('event-venue').value.trim(),
+    place:     document.getElementById('event-place').value.trim(),
+    date:      document.getElementById('event-date').value,
+  };
+
+  const btn = document.getElementById('btn-save-event');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
+  try {
+    await saveEvent(evt);
+    closeModal('modal-event-overlay');
+    renderCurrentView();
+    showToast('Event saved ✓', 'success');
+  } catch (err) { console.error(err);
+  showToast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Save Event'; }
+}
+
+async function handleSaveGift() {
+  const gifter = document.getElementById('gift-gifter').value.trim();
+  const type   = document.getElementById('gift-type').value;
+  if (!gifter) { showToast('Gifter name is required', 'error'); return; }
+  if (!type)   { showToast('Gift type is required', 'error'); return; }
+
+  const gift = {
+    id:              document.getElementById('gift-id').value || uuid(),
+    eventId:         document.getElementById('gift-event-id').value,
+    gifterName:      gifter,
+    address:         document.getElementById('gift-address').value.trim(),
+    giftType:        type,
+    quantity:        parseFloat(document.getElementById('gift-quantity').value) || 0,
+    photo:           document.getElementById('gift-photo-b64').value,
+    updatedDateTime: now(),
+  };
+
+  const btn = document.getElementById('btn-save-gift');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Saving…';
+  try {
+    await saveGift(gift);
+    closeModal('modal-gift-overlay');
+    if (state.activeView === 'events' || document.getElementById('view-event-detail').style.display === 'flex') {
+      renderEventDetail();
+    }
+    renderOverview();
+    showToast('Gift saved ✓', 'success');
+  } catch (err) { showToast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Save Gift'; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DELETE FLOW
+   ═══════════════════════════════════════════════════════════════ */
+function confirmDelete(msg, cb) {
+  document.getElementById('confirm-msg').textContent = msg;
+  state.confirmCallback = cb;
+  openModal('modal-confirm-overlay');
+}
+
+document.getElementById('btn-confirm-delete').addEventListener('click', async () => {
+  if (!state.confirmCallback) return;
+  const btn = document.getElementById('btn-confirm-delete');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await state.confirmCallback();
+    closeModal('modal-confirm-overlay');
+    renderCurrentView();
+    showToast('Deleted ✓', 'success');
+  } catch (err) { showToast(err.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Delete'; state.confirmCallback = null; }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   PIN / LOCK SYSTEM
+   ═══════════════════════════════════════════════════════════════ */
+let pinEntry = '';
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`d${i}`).classList.toggle('filled', i < pinEntry.length);
+  }
+}
+
+function showPinOverlay() {
+  pinEntry = '';
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-overlay').classList.remove('hidden');
+}
+
+function hidePinOverlay() {
+  document.getElementById('pin-overlay').classList.add('hidden');
+}
+
+document.querySelectorAll('.key-btn[data-key]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.key;
+    if (key === 'back') {
+      pinEntry = pinEntry.slice(0, -1);
+    } else if (pinEntry.length < 4) {
+      pinEntry += key;
+    }
+    updatePinDots();
+    if (pinEntry.length === 4) {
+      const stored = localStorage.getItem('giftylog_pin');
+      if (pinEntry === stored) {
+        hidePinOverlay();
+        pinEntry = '';
+      } else {
+        document.getElementById('pin-error').textContent = 'Incorrect PIN. Try again.';
+        setTimeout(() => {
+          pinEntry = '';
+          updatePinDots();
+          document.getElementById('pin-error').textContent = '';
+        }, 800);
+      }
+    }
+  });
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (state.settings.lockEnabled && localStorage.getItem('giftylog_pin')) {
+    showPinOverlay();
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SETTINGS HANDLERS
+   ═══════════════════════════════════════════════════════════════ */
+document.getElementById('btn-save-url').addEventListener('click', () => {
+  const url = document.getElementById('setting-url').value.trim();
+  state.settings.webAppUrl = url || WEB_APP_URL;
+  localStorage.setItem('giftylog_url', state.settings.webAppUrl);
+  showToast('URL saved ✓', 'success');
+  loadAll();
+});
+
+document.getElementById('toggle-lock').addEventListener('change', function () {
+  state.settings.lockEnabled = this.checked;
+  localStorage.setItem('giftylog_lock', this.checked ? '1' : '0');
+  document.getElementById('pin-setup-section').style.display = this.checked ? 'block' : 'none';
+  if (!this.checked) localStorage.removeItem('giftylog_pin');
+});
+
+document.getElementById('btn-save-pin').addEventListener('click', () => {
+  const pin = document.getElementById('pin-new').value;
+  if (!/^\d{4}$/.test(pin)) { showToast('PIN must be exactly 4 digits', 'error'); return; }
+  localStorage.setItem('giftylog_pin', pin);
+  document.getElementById('pin-new').value = '';
+  showToast('PIN saved ✓', 'success');
+});
+
+document.getElementById('btn-export-csv').addEventListener('click', () => {
+  const rows = [
+    ['Event Name','Gifter Name','Gift Type','Quantity','Address','Updated DateTime'],
+    ...state.gifts.map(g => {
+      const evt = state.events.find(e => e.id === g.eventId);
+      return [evt ? evt.eventName : '', g.gifterName, g.giftType, g.quantity, g.address, g.updatedDateTime];
+    })
+  ];
+  const csv = rows.map(r => r.map(c => `"${String(c || '').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `GiftyLog_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+});
+
+document.getElementById('btn-clear-cache').addEventListener('click', () => {
+  localStorage.removeItem('giftylog_cache');
+  showToast('Cache cleared', 'success');
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   EVENT DELEGATION — Main & Detail
+   ═══════════════════════════════════════════════════════════════ */
+document.getElementById('main').addEventListener('click', e => {
+  const t = e.target.closest('[data-event-id]');
+  if (t && !e.target.closest('[data-edit-event]') && !e.target.closest('[data-del-event]')) {
+    showEventDetail(t.dataset.eventId);
+    return;
+  }
+  const editEvt = e.target.closest('[data-edit-event]');
+  if (editEvt) {
+    const evt = state.events.find(ev => ev.id === editEvt.dataset.editEvent);
+    if (evt) openEventModal(evt);
+    return;
+  }
+  const delEvt = e.target.closest('[data-del-event]');
+  if (delEvt) {
+    const id = delEvt.dataset.delEvent;
+    const evt = state.events.find(ev => ev.id === id);
+    confirmDelete(`Delete event "${evt ? evt.eventName : ''}" and all its gifts? This cannot be undone.`, () => deleteEvent(id));
+    return;
+  }
+  const editGift = e.target.closest('[data-edit-gift]');
+  if (editGift) {
+    const gift = state.gifts.find(g => g.id === editGift.dataset.editGift);
+    if (gift) openGiftModal(gift);
+    return;
+  }
+  const delGift = e.target.closest('[data-del-gift]');
+  if (delGift) {
+    const id = delGift.dataset.delGift;
+    const g  = state.gifts.find(g => g.id === id);
+    confirmDelete(`Delete gift from "${g ? g.gifterName : ''}"? This cannot be undone.`, () => deleteGift(id));
+    return;
+  }
+  const chip = e.target.closest('[data-chip]');
+  if (chip) {
+    state.detailFilter = chip.dataset.chip;
+    renderEventDetail();
+    return;
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   NAVIGATION
+   ═══════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => showView(btn.dataset.view));
+});
+
+document.getElementById('btn-back-events').addEventListener('click', () => {
+  document.getElementById('view-event-detail').style.display = 'none';
+  showView('events');
+});
+
+document.getElementById('btn-add-event').addEventListener('click', () => openEventModal());
+document.getElementById('btn-add-gift').addEventListener('click', () => openGiftModal(null, state.activeEventId));
+document.getElementById('btn-save-event').addEventListener('click', handleSaveEvent);
+document.getElementById('btn-save-gift').addEventListener('click', handleSaveGift);
+document.getElementById('btn-refresh').addEventListener('click', loadAll);
+
+/* ── Modal close buttons ──────────────────────────────────────── */
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) closeModal(overlay.id);
+  });
+});
+
+/* ── Search ───────────────────────────────────────────────────── */
+document.getElementById('global-search').addEventListener('input', renderGiftsMaster);
+document.getElementById('detail-search').addEventListener('input', renderEventDetail);
+
+/* ── Photo upload ─────────────────────────────────────────────── */
+function triggerPhoto(capture) {
+  const inp = document.getElementById('gift-photo-input');
+  if (capture) inp.setAttribute('capture', 'environment');
+  else inp.removeAttribute('capture');
+  inp.click();
+}
+document.getElementById('btn-upload-photo').addEventListener('click', () => triggerPhoto(false));
+document.getElementById('btn-camera-photo').addEventListener('click', () => triggerPhoto(true));
+document.getElementById('photo-preview').addEventListener('click',   () => triggerPhoto(false));
+document.getElementById('btn-clear-photo').addEventListener('click', clearPhotoPreview);
+
+document.getElementById('gift-photo-input').addEventListener('change', async function () {
+  const file = this.files[0];
+  if (!file) return;
+  try {
+    const b64 = await compressImage(file);
+    document.getElementById('gift-photo-b64').value = b64;
+    setPhotoPreview(b64);
+  } catch { showToast('Could not process image', 'error'); }
+});
+
+/* ── Keyboard ─────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SERVICE WORKER REGISTRATION
+   ═══════════════════════════════════════════════════════════════ */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════ */
+(function init() {
+  // Restore cached data immediately for instant render
+  const cached = loadCache();
+  if (cached) {
+    state.events = cached.events || [];
+    state.gifts  = cached.gifts  || [];
+  }
+
+  // PIN lock check
+  if (state.settings.lockEnabled && localStorage.getItem('giftylog_pin')) {
+    showPinOverlay();
+  }
+
+  // Restore saved URL
+  const savedUrl = localStorage.getItem('giftylog_url');
+  if (savedUrl) state.settings.webAppUrl = savedUrl;
+
+  showView('overview');
+
+  // Attempt live sync after render
+  if (state.settings.webAppUrl && state.settings.webAppUrl !== 'PASTE_YOUR_SCRIPT_URL_HERE') {
+    loadAll();
+  }
+})();
+</script>
+</body>
+</html>
