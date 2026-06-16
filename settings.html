@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4F46E5" />
+  <title>Settings — GiftyLog</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="shared.css" />
+  <style>
+    .settings-card { background: var(--card); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); max-width: 540px; margin-bottom: 20px; }
+    .settings-section-title { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 16px; }
+    .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .settings-label { font-weight: 600; font-size: .95rem; }
+    .settings-desc  { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+    .pin-row { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+    .pin-input { width: 120px; letter-spacing: .3em; font-size: 1.1rem; }
+    .encrypt-badge { display: inline-flex; align-items: center; gap: 5px; background: #D1FAE5; color: #065F46; font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Settings</div>
+          <div class="page-subtitle">App preferences & security</div>
+        </div>
+      </div>
+
+      <!-- Backend -->
+      <div class="settings-card">
+        <div class="settings-section-title">Backend Connection</div>
+        <div class="form-group">
+          <label class="form-label">Google Apps Script Web App URL</label>
+          <input class="form-control" id="setting-url" type="url" placeholder="https://script.google.com/macros/s/…/exec" />
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-save-url">Save & Sync</button>
+      </div>
+
+      <!-- Security -->
+      <div class="settings-card">
+        <div class="settings-section-title">Security</div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">App Lock</div>
+            <div class="settings-desc">Require a 4-digit PIN on launch and when switching tabs</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-lock" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="pin-section" style="display:none">
+          <hr class="divider" />
+          <div class="settings-desc" style="margin-bottom:10px">Set or update your 4-digit PIN</div>
+          <div class="pin-row">
+            <input class="form-control pin-input" id="pin-new" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="••••" />
+            <button class="btn btn-primary btn-sm" id="btn-save-pin">Save PIN</button>
+          </div>
+          <div style="margin-top:10px;font-size:.8rem;color:var(--text-muted)" id="pin-status"></div>
+        </div>
+        <hr class="divider" />
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Local Data Encryption <span class="encrypt-badge">🔒 AES-256</span></div>
+            <div class="settings-desc">All cached data is encrypted in localStorage using AES-GCM 256-bit</div>
+          </div>
+          <span style="color:var(--emerald);font-size:1.2rem">✅</span>
+        </div>
+      </div>
+
+      <!-- Data -->
+      <div class="settings-card">
+        <div class="settings-section-title">Data Management</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" id="btn-export">⬇ Export CSV</button>
+          <button class="btn btn-rose  btn-sm" id="btn-clear">🗑 Clear Local Cache</button>
+        </div>
+      </div>
+
+      <!-- About -->
+      <div class="settings-card">
+        <div class="settings-section-title">About</div>
+        <div style="font-size:.85rem;color:var(--text-muted);line-height:1.8">
+          <div><b>GiftyLog</b> v1.0 — Progressive Web App</div>
+          <div>Data syncs to Google Sheets via Apps Script</div>
+          <div style="margin-top:8px">
+            <a href="index.html" style="color:var(--indigo);font-weight:600">← Back to Overview</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="shared.js"></script>
+<script>
+(async () => {
+  await initApp('settings');
+
+  /* ── Populate fields ── */
+  const urlEl  = document.getElementById('setting-url');
+  const lockEl = document.getElementById('toggle-lock');
+
+  urlEl.value    = state.webAppUrl !== 'PASTE_YOUR_SCRIPT_URL_HERE' ? state.webAppUrl : '';
+  lockEl.checked = state.lockEnabled;
+  document.getElementById('pin-section').style.display = state.lockEnabled ? 'block' : 'none';
+  updatePinStatus();
+
+  function updatePinStatus() {
+    const el = document.getElementById('pin-status');
+    if (!el) return;
+    el.textContent = localStorage.getItem('giftylog_pin') ? '✅ PIN is set' : '⚠️ No PIN set yet';
+  }
+
+  /* ── URL ── */
+  document.getElementById('btn-save-url').addEventListener('click', async () => {
+    const url = urlEl.value.trim();
+    if (!url) { showToast('Please enter a URL', 'error'); return; }
+    state.webAppUrl = url;
+    localStorage.setItem('giftylog_url', url);
+    showToast('Saved — syncing…', 'success');
+    await loadAll();
+  });
+
+  /* ── Lock toggle ── */
+  lockEl.addEventListener('change', function () {
+    state.lockEnabled = this.checked;
+    localStorage.setItem('giftylog_lock', this.checked ? '1' : '0');
+    document.getElementById('pin-section').style.display = this.checked ? 'block' : 'none';
+    if (!this.checked) {
+      localStorage.removeItem('giftylog_pin');
+      updatePinStatus();
+    }
+  });
+
+  /* ── PIN ── */
+  document.getElementById('btn-save-pin').addEventListener('click', () => {
+    const pin = document.getElementById('pin-new').value;
+    if (!/^\d{4}$/.test(pin)) { showToast('PIN must be exactly 4 digits', 'error'); return; }
+    localStorage.setItem('giftylog_pin', pin);
+    document.getElementById('pin-new').value = '';
+    updatePinStatus();
+    showToast('PIN saved ✓', 'success');
+  });
+
+  /* ── Export CSV ── */
+  document.getElementById('btn-export').addEventListener('click', () => {
+    const rows = [
+      ['Event Name', 'Gifter Name', 'Gift Type', 'Quantity', 'Address', 'Updated DateTime'],
+      ...state.gifts.map(g => {
+        const evt = state.events.find(e => e.id === g.eventId);
+        return [evt?.eventName || '', g.gifterName, g.giftType, g.quantity, g.address, g.updatedDateTime];
+      })
+    ];
+    const csv  = rows.map(r => r.map(c => `"${String(c || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const a    = Object.assign(document.createElement('a'), {
+      href:     URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+      download: `GiftyLog_${new Date().toISOString().slice(0,10)}.csv`,
+    });
+    a.click();
+  });
+
+  /* ── Clear cache ── */
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    localStorage.removeItem('gl_cache');
+    state.events = [];
+    state.gifts  = [];
+    showToast('Cache cleared', 'success');
+  });
+})();
+</script>
+</body>
+</html>

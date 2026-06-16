@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4F46E5" />
+  <title>Event Detail — GiftyLog</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="shared.css" />
+  <style>
+    .event-header {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .event-header-accent { height: 5px; background: var(--emerald); }
+    .event-header-body   { padding: 18px 20px; }
+    .event-header-top    { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .event-title         { font-size: 1.35rem; font-weight: 800; margin-bottom: 10px; }
+    .event-meta          { display: flex; flex-wrap: wrap; gap: 14px; font-size: .85rem; color: var(--text-muted); }
+    .event-meta span     { display: flex; align-items: center; gap: 5px; }
+    .event-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    .gifts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+
+    .gift-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); display: flex; gap: 14px; }
+    .gift-info { flex: 1; min-width: 0; }
+    .gift-name { font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+    .gift-meta { font-size: .78rem; color: var(--text-muted); line-height: 1.7; margin-top: 6px; }
+    .gift-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+    .detail-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+
+    @media (max-width: 480px) {
+      .gifts-grid { grid-template-columns: 1fr; }
+      .event-header-top { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div id="sidebar-mount"></div>
+  <main class="main">
+    <div class="page">
+      <a href="events.html" class="back-btn">← Back to Events</a>
+
+      <!-- Event header -->
+      <div class="event-header" id="event-header">
+        <div class="event-header-accent"></div>
+        <div class="event-header-body">
+          <div class="event-header-top">
+            <div>
+              <div class="event-title" id="evt-title">—</div>
+              <div class="event-meta"  id="evt-meta"></div>
+            </div>
+            <div class="event-header-actions">
+              <button class="btn btn-ghost btn-sm" id="btn-edit-event">✏️ Edit</button>
+              <button class="btn btn-rose  btn-sm" id="btn-del-event">🗑️ Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gifts toolbar -->
+      <div class="detail-toolbar">
+        <div class="section-title" style="margin:0">Gifts</div>
+        <button class="btn btn-emerald btn-sm" id="btn-add-gift">＋ Add Gift</button>
+      </div>
+
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="search" placeholder="Search gifts…" type="search" />
+      </div>
+      <div class="filter-bar" id="filter-bar"></div>
+      <div class="gifts-grid" id="gifts-grid"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Edit Event Modal -->
+<div class="modal-overlay" id="modal-event">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Edit Event</div>
+      <button class="modal-close" onclick="closeModal('modal-event')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="evt-id" />
+      <div class="form-group">
+        <label class="form-label">Event Name *</label>
+        <input class="form-control" id="evt-name"  type="text" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Venue</label>
+        <input class="form-control" id="evt-venue" type="text" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Place</label>
+        <input class="form-control" id="evt-place" type="text" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-control" id="evt-date"  type="date" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost"   onclick="closeModal('modal-event')">Cancel</button>
+        <button class="btn btn-emerald" id="btn-save-event">Save Event</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Gift Modal -->
+<div class="modal-overlay" id="modal-gift">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-gift-title">Add Gift</div>
+      <button class="modal-close" onclick="closeModal('modal-gift')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="gift-id" />
+      <div class="form-group">
+        <label class="form-label">Gifter Name *</label>
+        <input class="form-control" id="gift-gifter"   type="text" placeholder="Full name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <textarea class="form-control" id="gift-address" placeholder="Street, City, State…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Gift Type *</label>
+        <select class="form-control" id="gift-type">
+          <option value="">Select type…</option>
+          <option>Cash</option><option>Kind</option><option>Gold</option>
+          <option>Silver</option><option>Electronics</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quantity</label>
+        <input class="form-control" id="gift-qty" type="number" min="0" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Photo (Optional)</label>
+        <div class="photo-preview" id="gift-photo-preview">
+          <div class="photo-placeholder"><span>📷</span>Tap to upload / capture</div>
+        </div>
+        <input type="file" id="gift-photo-input" accept="image/*" style="display:none" />
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" id="btn-photo-upload">📁 Upload</button>
+          <button class="btn btn-ghost btn-sm" id="btn-photo-camera">📷 Camera</button>
+          <button class="btn btn-rose  btn-sm" id="btn-photo-clear"  style="display:none">✕ Remove</button>
+        </div>
+        <input type="hidden" id="gift-photo-b64" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost"   onclick="closeModal('modal-gift')">Cancel</button>
+        <button class="btn btn-emerald" id="btn-save-gift">Save Gift</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+(async () => {
+  await initApp('events');
+
+  const params  = new URLSearchParams(location.search);
+  const eventId = params.get('id');
+  if (!eventId) { location.href = 'events.html'; return; }
+
+  /* ensure data */
+  if (!state.events.length) await loadAll();
+
+  let evt = state.events.find(e => e.id === eventId);
+  if (!evt) { showToast('Event not found', 'error'); setTimeout(() => location.href = 'events.html', 1500); return; }
+
+  let activeFilter = 'All';
+
+  /* ── Render header ── */
+  function renderHeader() {
+    evt = state.events.find(e => e.id === eventId) || evt;
+    document.title = `${evt.eventName} — GiftyLog`;
+    document.getElementById('evt-title').textContent = evt.eventName;
+    document.getElementById('evt-meta').innerHTML = [
+      evt.venue ? `<span>🏛 ${esc(evt.venue)}</span>` : '',
+      evt.place ? `<span>📍 ${esc(evt.place)}</span>` : '',
+      evt.date  ? `<span>📅 ${fmtDate(evt.date)}</span>` : '',
+    ].join('');
+  }
+
+  /* ── Render gifts ── */
+  function renderGifts() {
+    const q    = document.getElementById('search').value.toLowerCase();
+    const types = ['All', ...new Set(state.gifts.filter(g => g.eventId === eventId).map(g => g.giftType).filter(Boolean))];
+
+    document.getElementById('filter-bar').innerHTML = types.map(t =>
+      `<button class="chip${activeFilter === t ? ' active' : ''}" data-chip="${esc(t)}">${esc(t)}</button>`
+    ).join('');
+
+    let gifts = state.gifts.filter(g => g.eventId === eventId);
+    if (activeFilter !== 'All') gifts = gifts.filter(g => g.giftType === activeFilter);
+    if (q) gifts = gifts.filter(g =>
+      (g.gifterName || '').toLowerCase().includes(q) ||
+      (g.giftType   || '').toLowerCase().includes(q) ||
+      (g.address    || '').toLowerCase().includes(q)
+    );
+
+    const grid = document.getElementById('gifts-grid');
+    if (!gifts.length) {
+      grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🎁</div><p>No gifts match your filter.</p></div>`;
+      return;
+    }
+    grid.innerHTML = gifts.map(g => {
+      const emoji = GIFT_EMOJI[g.giftType] || '🎁';
+      const thumb = g.photo
+        ? `<div class="gift-thumb"><img src="${g.photo}" alt="gift" loading="lazy" /></div>`
+        : `<div class="gift-thumb">${emoji}</div>`;
+      return `
+        <div class="gift-card">
+          ${thumb}
+          <div class="gift-info">
+            <div class="gift-name">${esc(g.gifterName)}</div>
+            <span class="badge badge-${esc(g.giftType || 'Other')}">${esc(g.giftType || 'Other')}</span>
+            <div class="gift-meta">
+              ${g.quantity  ? `<div>Qty: <b>${g.quantity}</b></div>` : ''}
+              ${g.address   ? `<div>📍 ${esc(g.address)}</div>` : ''}
+              <div>🕐 ${fmt(g.updatedDateTime)}</div>
+            </div>
+            <div class="gift-actions">
+              <button class="btn btn-ghost btn-sm" data-edit-gift="${esc(g.id)}">✏️ Edit</button>
+              <button class="btn btn-rose  btn-sm" data-del-gift="${esc(g.id)}">🗑️</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  renderHeader();
+  renderGifts();
+
+  /* ── Filter & search ── */
+  document.getElementById('filter-bar').addEventListener('click', e => {
+    const chip = e.target.closest('[data-chip]');
+    if (chip) { activeFilter = chip.dataset.chip; renderGifts(); }
+  });
+  document.getElementById('search').addEventListener('input', renderGifts);
+
+  /* ── Edit event ── */
+  function populateEventModal() {
+    document.getElementById('evt-id').value    = evt.id;
+    document.getElementById('evt-name').value  = evt.eventName;
+    document.getElementById('evt-venue').value = evt.venue || '';
+    document.getElementById('evt-place').value = evt.place || '';
+    document.getElementById('evt-date').value  = evt.date  || '';
+  }
+
+  document.getElementById('btn-edit-event').addEventListener('click', () => { populateEventModal(); openModal('modal-event'); });
+
+  document.getElementById('btn-save-event').addEventListener('click', async () => {
+    const name = document.getElementById('evt-name').value.trim();
+    if (!name) { showToast('Event name is required', 'error'); return; }
+    const updated = {
+      id:        document.getElementById('evt-id').value,
+      eventName: name,
+      venue:     document.getElementById('evt-venue').value.trim(),
+      place:     document.getElementById('evt-place').value.trim(),
+      date:      document.getElementById('evt-date').value,
+    };
+    const btn = document.getElementById('btn-save-event');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
+    try {
+      await saveEvent(updated);
+      closeModal('modal-event');
+      renderHeader();
+      showToast('Event updated ✓', 'success');
+    } catch (err) { showToast(err.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Save Event'; }
+  });
+
+  /* ── Delete event ── */
+  document.getElementById('btn-del-event').addEventListener('click', () => {
+    confirmDelete(
+      `Delete "${evt.eventName}" and all its gifts? This cannot be undone.`,
+      async () => { await deleteEvent(eventId); location.href = 'events.html'; }
+    );
+  });
+
+  /* ── Gift modal ── */
+  let photoCtrl;
+
+  function openGiftModal(gift = null) {
+    document.getElementById('gift-id').value      = gift?.id      || '';
+    document.getElementById('gift-gifter').value  = gift?.gifterName || '';
+    document.getElementById('gift-address').value = gift?.address    || '';
+    document.getElementById('gift-type').value    = gift?.giftType   || '';
+    document.getElementById('gift-qty').value     = gift?.quantity   || '';
+    document.getElementById('gift-photo-b64').value = gift?.photo   || '';
+    document.getElementById('modal-gift-title').textContent = gift ? 'Edit Gift' : 'Add Gift';
+    photoCtrl?.setPreview(gift?.photo || '');
+    document.getElementById('gift-photo-input').value = '';
+    openModal('modal-gift');
+  }
+
+  photoCtrl = setupPhotoInput({
+    inputId:   'gift-photo-input',
+    previewId: 'gift-photo-preview',
+    b64Id:     'gift-photo-b64',
+    clearBtnId:'btn-photo-clear',
+  });
+
+  document.getElementById('btn-add-gift').addEventListener('click', () => openGiftModal());
+
+  document.getElementById('gifts-grid').addEventListener('click', e => {
+    const edit = e.target.closest('[data-edit-gift]');
+    const del  = e.target.closest('[data-del-gift]');
+    if (edit) { openGiftModal(state.gifts.find(g => g.id === edit.dataset.editGift)); return; }
+    if (del) {
+      const g = state.gifts.find(g => g.id === del.dataset.delGift);
+      confirmDelete(
+        `Delete gift from "${g?.gifterName || ''}"? This cannot be undone.`,
+        async () => { await deleteGift(del.dataset.delGift); renderGifts(); showToast('Gift deleted', 'success'); }
+      );
+    }
+  });
+
+  document.getElementById('btn-save-gift').addEventListener('click', async () => {
+    const gifter = document.getElementById('gift-gifter').value.trim();
+    const type   = document.getElementById('gift-type').value;
+    if (!gifter) { showToast('Gifter name is required', 'error'); return; }
+    if (!type)   { showToast('Gift type is required', 'error'); return; }
+
+    const gift = {
+      id:              document.getElementById('gift-id').value || uuid(),
+      eventId,
+      gifterName:      gifter,
+      address:         document.getElementById('gift-address').value.trim(),
+      giftType:        type,
+      quantity:        parseFloat(document.getElementById('gift-qty').value) || 0,
+      photo:           document.getElementById('gift-photo-b64').value,
+      updatedDateTime: nowISO(),
+    };
+    const btn = document.getElementById('btn-save-gift');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
+    try {
+      await saveGift(gift);
+      closeModal('modal-gift');
+      renderGifts();
+      showToast('Gift saved ✓', 'success');
+    } catch (err) { showToast(err.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Save Gift'; }
+  });
+
+  /* close modals on backdrop click */
+  ['modal-event','modal-gift'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => { if (e.target.id === id) closeModal(id); });
+  });
+})();
+</script>
+</body>
+</html>
