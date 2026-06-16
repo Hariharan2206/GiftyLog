@@ -99,11 +99,15 @@ a { color: inherit; text-decoration: none; }
 .btn:hover   { opacity: .88; }
 .btn:active  { transform: scale(.97); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-primary { background: var(--indigo);  color: #fff; }
-.btn-emerald { background: var(--emerald); color: #fff; }
-.btn-rose    { background: var(--rose);    color: #fff; }
-.btn-purple  { background: var(--purple);  color: #fff; }
+.btn-primary { background: var(--indigo);  color: #fff; box-shadow: 0 0 0 1px var(--indigo-dark), 0 0 10px rgba(44,166,164,.40); }
+.btn-emerald { background: var(--emerald); color: #fff; box-shadow: 0 0 0 1px var(--emerald-dark), 0 0 10px rgba(94,194,183,.40); }
+.btn-rose    { background: var(--rose);    color: #fff; box-shadow: 0 0 0 1px #C0243E, 0 0 10px rgba(244,63,94,.40); }
+.btn-purple  { background: var(--purple);  color: #fff; box-shadow: 0 0 0 1px #5B21B6, 0 0 10px rgba(124,58,237,.40); }
 .btn-ghost   { background: var(--border);  color: var(--text); }
+.btn-primary:hover { box-shadow: 0 0 0 1px var(--indigo-dark), 0 0 18px rgba(44,166,164,.65); }
+.btn-emerald:hover { box-shadow: 0 0 0 1px var(--emerald-dark), 0 0 18px rgba(94,194,183,.65); }
+.btn-rose:hover    { box-shadow: 0 0 0 1px #C0243E, 0 0 18px rgba(244,63,94,.65); }
+.btn-purple:hover  { box-shadow: 0 0 0 1px #5B21B6, 0 0 18px rgba(124,58,237,.65); }
 .btn-sm      { padding: 6px 12px; font-size: .8rem; border-radius: 6px; }
 
 /* ── Section title ── */
