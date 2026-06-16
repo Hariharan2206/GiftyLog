@@ -405,14 +405,27 @@ function confirmDelete(msg, cb) {
    INACTIVITY AUTO-LOCK
    ═══════════════════════════════════════════════════════════════ */
 let _inactivityTimer = null;
-const INACTIVITY_MS  = 2 * 60 * 1000;
+const INACTIVITY_MS  = 1 * 60 * 1000;
 
 function _resetInactivityTimer() {
   if (!state.lockEnabled || !localStorage.getItem('giftylog_pin')) return;
   if (!sessionStorage.getItem('gl_unlocked')) return;
   clearTimeout(_inactivityTimer);
-  _inactivityTimer = setTimeout(() => {
+  _inactivityTimer = setTimeout(async () => {
     sessionStorage.removeItem('gl_unlocked');
+    /* fetch latest PIN from Sheet before locking so password changes propagate */
+    try {
+      const data = await apiCall({ action: 'getAll' });
+      state.settings = data.settings || state.settings;
+      if (state.settings.pin_hash) {
+        localStorage.setItem('giftylog_pin', state.settings.pin_hash);
+      }
+      if (state.settings.lock_enabled === '0') {
+        /* owner disabled lock remotely — don't lock */
+        _startInactivityTimer();
+        return;
+      }
+    } catch (_) { /* network failed — use cached PIN */ }
     showPinOverlay();
   }, INACTIVITY_MS);
 }
