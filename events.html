@@ -65,8 +65,8 @@
           <div class="page-subtitle">All your logged events</div>
         </div>
         <div style="display:flex;gap:10px">
-          <button class="btn btn-ghost btn-sm" id="btn-refresh">🔄 Refresh</button>
-          <button class="btn btn-emerald"      id="btn-add-event">＋ Add Event</button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh"><i class="ti ti-refresh"></i> Refresh</button>
+          <button class="btn btn-emerald"      id="btn-add-event"><i class="ti ti-plus"></i> Add Event</button>
         </div>
       </div>
 
@@ -82,7 +82,7 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-event-title">Add Event</div>
-      <button class="modal-close" onclick="closeModal('modal-event')">✕</button>
+      <button class="modal-close" onclick="closeModal('modal-event')"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="evt-id" />
@@ -139,8 +139,8 @@
           <div class="event-card-footer">
             <span class="gift-count-badge">🎁 ${count} gift${count !== 1 ? 's' : ''}</span>
             <div class="event-actions">
-              <button class="btn btn-primary btn-sm" data-edit="${esc(evt.id)}">✏️ Edit</button>
-              <button class="btn btn-rose  btn-sm" data-del="${esc(evt.id)}">🗑️</button>
+              <button class="btn btn-primary btn-sm" data-edit="${esc(evt.id)}"><i class="ti ti-pencil"></i> Edit</button>
+              <button class="btn btn-rose  btn-sm" data-del="${esc(evt.id)}"><i class="ti ti-trash"></i></button>
             </div>
           </div>
         </div>`;

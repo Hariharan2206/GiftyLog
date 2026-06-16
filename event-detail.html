@@ -56,8 +56,8 @@
               <div class="event-meta"  id="evt-meta"></div>
             </div>
             <div class="event-header-actions">
-              <button class="btn btn-primary btn-sm" id="btn-edit-event">✏️ Edit</button>
-              <button class="btn btn-rose  btn-sm" id="btn-del-event">🗑️ Delete</button>
+              <button class="btn btn-primary btn-sm" id="btn-edit-event"><i class="ti ti-pencil"></i> Edit</button>
+              <button class="btn btn-rose  btn-sm" id="btn-del-event"><i class="ti ti-trash"></i> Delete</button>
             </div>
           </div>
         </div>
@@ -66,11 +66,11 @@
       <!-- Gifts toolbar -->
       <div class="detail-toolbar">
         <div class="section-title" style="margin:0">Gifts</div>
-        <button class="btn btn-emerald btn-sm" id="btn-add-gift">＋ Add Gift</button>
+        <button class="btn btn-emerald btn-sm" id="btn-add-gift"><i class="ti ti-plus"></i> Add Gift</button>
       </div>
 
       <div class="search-wrap">
-        <span class="search-icon">🔍</span>
+        <span class="search-icon"><i class="ti ti-search"></i></span>
         <input class="search-input" id="search" placeholder="Search gifts…" type="search" />
       </div>
       <div class="filter-bar" id="filter-bar"></div>
@@ -84,7 +84,7 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Edit Event</div>
-      <button class="modal-close" onclick="closeModal('modal-event')">✕</button>
+      <button class="modal-close" onclick="closeModal('modal-event')"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="evt-id" />
@@ -117,7 +117,7 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-gift-title">Add Gift</div>
-      <button class="modal-close" onclick="closeModal('modal-gift')">✕</button>
+      <button class="modal-close" onclick="closeModal('modal-gift')"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="gift-id" />
@@ -148,9 +148,9 @@
         </div>
         <input type="file" id="gift-photo-input" accept="image/*" style="display:none" />
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" id="btn-photo-upload">📁 Upload</button>
-          <button class="btn btn-ghost btn-sm" id="btn-photo-camera">📷 Camera</button>
-          <button class="btn btn-rose  btn-sm" id="btn-photo-clear"  style="display:none">✕ Remove</button>
+          <button class="btn btn-ghost btn-sm" id="btn-photo-upload"><i class="ti ti-folder-open"></i> Upload</button>
+          <button class="btn btn-ghost btn-sm" id="btn-photo-camera"><i class="ti ti-camera"></i> Camera</button>
+          <button class="btn btn-rose  btn-sm" id="btn-photo-clear"  style="display:none"><i class="ti ti-x"></i> Remove</button>
         </div>
         <input type="hidden" id="gift-photo-b64" />
       </div>
@@ -231,8 +231,8 @@
               <div>🕐 ${fmt(g.updatedDateTime)}</div>
             </div>
             <div class="gift-actions">
-              <button class="btn btn-primary btn-sm" data-edit-gift="${esc(g.id)}">✏️ Edit</button>
-              <button class="btn btn-rose  btn-sm" data-del-gift="${esc(g.id)}">🗑️</button>
+              <button class="btn btn-primary btn-sm" data-edit-gift="${esc(g.id)}"><i class="ti ti-pencil"></i> Edit</button>
+              <button class="btn btn-rose  btn-sm" data-del-gift="${esc(g.id)}"><i class="ti ti-trash"></i></button>
             </div>
           </div>
         </div>`;

@@ -99,15 +99,16 @@ a { color: inherit; text-decoration: none; }
 .btn:hover   { opacity: .88; }
 .btn:active  { transform: scale(.97); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-primary { background: var(--indigo);  color: #fff; box-shadow: 0 0 0 1px var(--indigo-dark), 0 0 10px rgba(44,166,164,.40); }
-.btn-emerald { background: var(--emerald); color: #fff; box-shadow: 0 0 0 1px var(--emerald-dark), 0 0 10px rgba(94,194,183,.40); }
-.btn-rose    { background: var(--rose);    color: #fff; box-shadow: 0 0 0 1px #C0243E, 0 0 10px rgba(244,63,94,.40); }
-.btn-purple  { background: var(--purple);  color: #fff; box-shadow: 0 0 0 1px #5B21B6, 0 0 10px rgba(124,58,237,.40); }
-.btn-ghost   { background: var(--border);  color: var(--text); }
-.btn-primary:hover { box-shadow: 0 0 0 1px var(--indigo-dark), 0 0 18px rgba(44,166,164,.65); }
-.btn-emerald:hover { box-shadow: 0 0 0 1px var(--emerald-dark), 0 0 18px rgba(94,194,183,.65); }
-.btn-rose:hover    { box-shadow: 0 0 0 1px #C0243E, 0 0 18px rgba(244,63,94,.65); }
-.btn-purple:hover  { box-shadow: 0 0 0 1px #5B21B6, 0 0 18px rgba(124,58,237,.65); }
+.btn-primary { background: transparent; color: var(--indigo);  border: 2px solid var(--indigo);  box-shadow: 0 0 8px rgba(44,166,164,.40); }
+.btn-emerald { background: transparent; color: var(--emerald); border: 2px solid var(--emerald); box-shadow: 0 0 8px rgba(94,194,183,.40); }
+.btn-rose    { background: transparent; color: var(--rose);    border: 2px solid var(--rose);    box-shadow: 0 0 8px rgba(244,63,94,.40); }
+.btn-purple  { background: transparent; color: var(--purple);  border: 2px solid var(--purple);  box-shadow: 0 0 8px rgba(124,58,237,.40); }
+.btn-ghost   { background: transparent; color: var(--text-muted); border: 1.5px solid var(--border); }
+.btn-ghost:hover { border-color: var(--text-muted); color: var(--text); }
+.btn-primary:hover { box-shadow: 0 0 16px rgba(44,166,164,.70); border-color: var(--indigo-dark); }
+.btn-emerald:hover { box-shadow: 0 0 16px rgba(94,194,183,.70); border-color: var(--emerald-dark); }
+.btn-rose:hover    { box-shadow: 0 0 16px rgba(244,63,94,.70);  border-color: #C0243E; }
+.btn-purple:hover  { box-shadow: 0 0 16px rgba(124,58,237,.70); border-color: #5B21B6; }
 .btn-sm      { padding: 6px 12px; font-size: .8rem; border-radius: 6px; }
 
 /* ── Section title ── */
@@ -124,7 +125,7 @@ a { color: inherit; text-decoration: none; }
 .search-input:focus { border-color: var(--indigo); }
 
 /* ── Filter chips ── */
-.filter-bar { display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; margin-bottom: 16px; -webkit-overflow-scrolling: touch; }
+.filter-bar { display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; overflow-y: visible; padding-bottom: 6px; margin-bottom: 16px; -webkit-overflow-scrolling: touch; min-height: 38px; align-items: center; }
 .filter-bar::-webkit-scrollbar { display: none; }
 .chip { flex-shrink: 0; padding: 6px 14px; border-radius: 999px; font-size: .8rem; font-weight: 600; background: var(--card); border: 2px solid var(--border); color: var(--text-muted); transition: all .15s; cursor: pointer; }
 .chip:hover, .chip.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }

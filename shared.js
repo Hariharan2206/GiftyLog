@@ -331,13 +331,13 @@ function confirmDelete(msg, cb) {
         <div class="modal" style="max-width:380px">
           <div class="modal-header">
             <div class="modal-title">Confirm Delete</div>
-            <button class="modal-close" onclick="closeModal('gl-confirm')">✕</button>
+            <button class="modal-close" onclick="closeModal('gl-confirm')"><i class="ti ti-x"></i></button>
           </div>
           <div class="modal-body">
             <p id="gl-confirm-msg" style="color:var(--text-muted);font-size:.9rem;line-height:1.6"></p>
             <div class="modal-footer">
               <button class="btn btn-ghost" onclick="closeModal('gl-confirm')">Cancel</button>
-              <button class="btn btn-rose" id="gl-confirm-btn">Delete</button>
+              <button class="btn btn-rose" id="gl-confirm-btn"><i class="ti ti-trash"></i> Delete</button>
             </div>
           </div>
         </div>
@@ -422,7 +422,7 @@ function showPinOverlay() {
           <button class="key-btn" data-k="9">9</button>
           <button class="key-btn empty" aria-hidden="true"></button>
           <button class="key-btn" data-k="0">0</button>
-          <button class="key-btn" data-k="back">⌫</button>
+          <button class="key-btn" data-k="back"><i class="ti ti-backspace"></i></button>
         </div>
         <div class="pin-error" id="gl-pin-error"></div>
       </div>`);

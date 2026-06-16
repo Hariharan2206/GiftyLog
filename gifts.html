@@ -71,13 +71,13 @@
           <div class="page-title">All Gifts</div>
           <div class="page-subtitle">Every gift across all events</div>
         </div>
-        <button class="btn btn-ghost btn-sm" id="btn-refresh">🔄 Refresh</button>
+        <button class="btn btn-ghost btn-sm" id="btn-refresh"><i class="ti ti-refresh"></i> Refresh</button>
       </div>
 
       <div class="stats-bar" id="stats-bar"></div>
 
       <div class="search-wrap">
-        <span class="search-icon">🔍</span>
+        <span class="search-icon"><i class="ti ti-search"></i></span>
         <input class="search-input" id="search" placeholder="Search by gifter, type, or event…" type="search" />
       </div>
 
@@ -95,7 +95,7 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Edit Gift</div>
-      <button class="modal-close" onclick="closeModal('modal-gift')">✕</button>
+      <button class="modal-close" onclick="closeModal('modal-gift')"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="gift-id" />
@@ -127,9 +127,9 @@
         </div>
         <input type="file" id="gift-photo-input" accept="image/*" style="display:none" />
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" id="btn-photo-upload">📁 Upload</button>
-          <button class="btn btn-ghost btn-sm" id="btn-photo-camera">📷 Camera</button>
-          <button class="btn btn-rose  btn-sm" id="btn-photo-clear" style="display:none">✕ Remove</button>
+          <button class="btn btn-ghost btn-sm" id="btn-photo-upload"><i class="ti ti-folder-open"></i> Upload</button>
+          <button class="btn btn-ghost btn-sm" id="btn-photo-camera"><i class="ti ti-camera"></i> Camera</button>
+          <button class="btn btn-rose  btn-sm" id="btn-photo-clear" style="display:none"><i class="ti ti-x"></i> Remove</button>
         </div>
         <input type="hidden" id="gift-photo-b64" />
       </div>
@@ -212,8 +212,8 @@
             </div>
           </div>
           <div class="gift-row-actions">
-            <button class="btn btn-primary btn-sm" data-edit="${esc(g.id)}">✏️</button>
-            <button class="btn btn-rose  btn-sm" data-del="${esc(g.id)}">🗑️</button>
+            <button class="btn btn-primary btn-sm" data-edit="${esc(g.id)}"><i class="ti ti-pencil"></i></button>
+            <button class="btn btn-rose  btn-sm" data-del="${esc(g.id)}"><i class="ti ti-trash"></i></button>
           </div>
         </div>`;
     }).join('');
