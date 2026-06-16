@@ -36,7 +36,12 @@
         <div class="settings-section-title">Backend Connection</div>
         <div class="form-group">
           <label class="form-label">Google Apps Script Web App URL</label>
-          <input class="form-control" id="setting-url" type="url" placeholder="https://script.google.com/macros/s/…/exec" />
+          <div style="position:relative;display:flex;align-items:center">
+            <input class="form-control" id="setting-url" type="password" placeholder="https://script.google.com/macros/s/…/exec" style="padding-right:42px" />
+            <button type="button" id="btn-toggle-url" title="Show / hide URL" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:4px;line-height:1">
+              <i class="ti ti-eye" id="url-eye-icon" style="font-size:1.1rem"></i>
+            </button>
+          </div>
         </div>
         <button class="btn btn-primary btn-sm" id="btn-save-url">Save & Sync</button>
       </div>
@@ -56,7 +61,7 @@
         </div>
         <div id="pin-section" style="display:none">
           <hr class="divider" />
-          <div class="settings-desc" style="margin-bottom:10px">Set or update your 4-digit PIN</div>
+          <div class="settings-desc" style="margin-bottom:10px">Enter new 4-digit PIN to update. Leave blank &amp; save to remove PIN lock.</div>
           <div class="pin-row">
             <input class="form-control pin-input" id="pin-new" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="••••" />
             <button class="btn btn-primary btn-sm" id="btn-save-pin">Save PIN</button>
@@ -116,8 +121,25 @@
   function updatePinStatus() {
     const el = document.getElementById('pin-status');
     if (!el) return;
-    el.textContent = localStorage.getItem('giftylog_pin') ? '✅ PIN is set' : '⚠️ No PIN set yet';
+    const serverPin = state.settings.pin_hash;
+    const localPin  = localStorage.getItem('giftylog_pin');
+    if (serverPin)   el.innerHTML = '✅ PIN is set &amp; synced across all devices';
+    else if (localPin) el.innerHTML = '⚠️ PIN set locally only — sync to save across devices';
+    else             el.innerHTML = '⚠️ No PIN set — app is unlocked for everyone';
   }
+
+  /* ── URL eye toggle ── */
+  document.getElementById('btn-toggle-url').addEventListener('click', () => {
+    const input = document.getElementById('setting-url');
+    const icon  = document.getElementById('url-eye-icon');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'ti ti-eye-off';
+    } else {
+      input.type = 'password';
+      icon.className = 'ti ti-eye';
+    }
+  });
 
   /* ── URL ── */
   document.getElementById('btn-save-url').addEventListener('click', async () => {
@@ -130,25 +152,50 @@
   });
 
   /* ── Lock toggle ── */
-  lockEl.addEventListener('change', function () {
+  lockEl.addEventListener('change', async function () {
     state.lockEnabled = this.checked;
     localStorage.setItem('giftylog_lock', this.checked ? '1' : '0');
     document.getElementById('pin-section').style.display = this.checked ? 'block' : 'none';
-    if (!this.checked) {
-      localStorage.removeItem('giftylog_pin');
-      updatePinStatus();
+    try {
+      await saveSetting('lock_enabled', this.checked ? '1' : '0');
+      if (!this.checked) {
+        await saveSetting('pin_hash', '');
+        localStorage.removeItem('giftylog_pin');
+        updatePinStatus();
+      }
+      showToast(this.checked ? 'App lock enabled across all devices' : 'App lock disabled', 'success');
+    } catch (err) {
+      showToast('Saved locally — sync failed: ' + err.message, 'error');
     }
   });
 
   /* ── PIN ── */
   document.getElementById('btn-save-pin').addEventListener('click', async () => {
     const pin = document.getElementById('pin-new').value;
-    if (!/^\d{4}$/.test(pin)) { showToast('PIN must be exactly 4 digits', 'error'); return; }
-    localStorage.setItem('giftylog_pin', await hashPin(pin));
-    sessionStorage.removeItem('gl_unlocked');
-    document.getElementById('pin-new').value = '';
-    updatePinStatus();
-    showToast('PIN saved ✓', 'success');
+    if (pin && !/^\d{4}$/.test(pin)) { showToast('PIN must be exactly 4 digits', 'error'); return; }
+    const btn = document.getElementById('btn-save-pin');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
+    try {
+      const hashed = pin ? await hashPin(pin) : '';
+      /* save to Google Sheet — syncs across all devices */
+      await saveSetting('pin_hash', hashed);
+      if (hashed) {
+        localStorage.setItem('giftylog_pin',  hashed);
+        localStorage.setItem('giftylog_lock', '1');
+        state.lockEnabled = true;
+        sessionStorage.removeItem('gl_unlocked');
+      } else {
+        localStorage.removeItem('giftylog_pin');
+        localStorage.setItem('giftylog_lock', '0');
+        state.lockEnabled = false;
+      }
+      lockEl.checked = state.lockEnabled;
+      document.getElementById('pin-section').style.display = state.lockEnabled ? 'block' : 'none';
+      document.getElementById('pin-new').value = '';
+      updatePinStatus();
+      showToast(pin ? 'PIN saved & synced ✓' : 'PIN removed', 'success');
+    } catch (err) { showToast(err.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Save PIN'; }
   });
 
   /* ── Export CSV ── */

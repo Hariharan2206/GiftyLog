@@ -129,17 +129,18 @@
         <label class="form-label">Address</label>
         <textarea class="form-control" id="gift-address" placeholder="Street, City, State…"></textarea>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="position:relative">
         <label class="form-label">Gift Type *</label>
-        <select class="form-control" id="gift-type">
-          <option value="">Select type…</option>
-          <option>Cash</option><option>Kind</option><option>Gold</option>
-          <option>Silver</option><option>Electronics</option><option>Other</option>
-        </select>
+        <input class="form-control" id="gift-type" type="text" placeholder="e.g. Cash, Gold, Kind…" autocomplete="off" />
+        <div id="gift-type-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--card);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:600;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Quantity</label>
+        <label class="form-label">Quantity *</label>
         <input class="form-control" id="gift-qty" type="number" min="0" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note</label>
+        <textarea class="form-control" id="gift-note" placeholder="Optional note…" rows="2"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Photo (Optional)</label>
@@ -228,6 +229,7 @@
             <div class="gift-meta">
               ${g.quantity  ? `<div>Qty: <b>${g.quantity}</b></div>` : ''}
               ${g.address   ? `<div>📍 ${esc(g.address)}</div>` : ''}
+              ${g.note      ? `<div>📝 ${esc(g.note)}</div>` : ''}
               <div>🕐 ${fmt(g.updatedDateTime)}</div>
             </div>
             <div class="gift-actions">
@@ -291,17 +293,58 @@
 
   /* ── Gift modal ── */
   let photoCtrl;
+  let _giftTypeOptions = [];
+
+  /* ── Gift-type custom combobox ── */
+  const _typeInput = document.getElementById('gift-type');
+  const _typeDrop  = document.getElementById('gift-type-dropdown');
+
+  function _renderTypeDropdown(q) {
+    const matches = _giftTypeOptions.filter(t => t.toLowerCase().includes(q.toLowerCase()));
+    if (!matches.length) { _typeDrop.style.display = 'none'; return; }
+    _typeDrop.innerHTML = matches.map(t =>
+      `<div class="type-opt" data-val="${esc(t)}" style="padding:9px 14px;cursor:pointer;font-size:.9rem;">${esc(t)}</div>`
+    ).join('');
+    _typeDrop.style.display = 'block';
+  }
+
+  _typeInput.addEventListener('input', () => _renderTypeDropdown(_typeInput.value));
+  _typeInput.addEventListener('focus', () => _renderTypeDropdown(_typeInput.value));
+
+  _typeDrop.addEventListener('mousedown', e => {
+    const opt = e.target.closest('.type-opt');
+    if (!opt) return;
+    e.preventDefault();
+    _typeInput.value = opt.dataset.val;
+    _typeDrop.style.display = 'none';
+  });
+
+  _typeDrop.addEventListener('mouseover', e => {
+    const opt = e.target.closest('.type-opt');
+    if (opt) opt.style.background = 'var(--surface)';
+  });
+  _typeDrop.addEventListener('mouseout', e => {
+    const opt = e.target.closest('.type-opt');
+    if (opt) opt.style.background = '';
+  });
+
+  document.addEventListener('click', e => {
+    if (!_typeInput.contains(e.target) && !_typeDrop.contains(e.target))
+      _typeDrop.style.display = 'none';
+  });
 
   function openGiftModal(gift = null) {
-    document.getElementById('gift-id').value      = gift?.id      || '';
-    document.getElementById('gift-gifter').value  = gift?.gifterName || '';
-    document.getElementById('gift-address').value = gift?.address    || '';
-    document.getElementById('gift-type').value    = gift?.giftType   || '';
-    document.getElementById('gift-qty').value     = gift?.quantity   || '';
-    document.getElementById('gift-photo-b64').value = gift?.photo   || '';
+    document.getElementById('gift-id').value        = gift?.id          || '';
+    document.getElementById('gift-gifter').value    = gift?.gifterName  || '';
+    document.getElementById('gift-address').value   = gift?.address     || '';
+    document.getElementById('gift-type').value      = gift?.giftType    || '';
+    document.getElementById('gift-qty').value       = gift?.quantity    || '';
+    document.getElementById('gift-note').value      = gift?.note        || '';
+    document.getElementById('gift-photo-b64').value = gift?.photo       || '';
     document.getElementById('modal-gift-title').textContent = gift ? 'Edit Gift' : 'Add Gift';
     photoCtrl?.setPreview(gift?.photo || '');
     document.getElementById('gift-photo-input').value = '';
+    _giftTypeOptions = [...new Set(state.gifts.map(g => g.giftType).filter(Boolean))];
     openModal('modal-gift');
   }
 
@@ -329,9 +372,11 @@
 
   document.getElementById('btn-save-gift').addEventListener('click', async () => {
     const gifter = document.getElementById('gift-gifter').value.trim();
-    const type   = document.getElementById('gift-type').value;
+    const type   = document.getElementById('gift-type').value.trim();
+    const qty    = document.getElementById('gift-qty').value;
     if (!gifter) { showToast('Gifter name is required', 'error'); return; }
     if (!type)   { showToast('Gift type is required', 'error'); return; }
+    if (!qty || isNaN(parseFloat(qty))) { showToast('Quantity is required', 'error'); return; }
 
     const gift = {
       id:              document.getElementById('gift-id').value || uuid(),
@@ -339,7 +384,8 @@
       gifterName:      gifter,
       address:         document.getElementById('gift-address').value.trim(),
       giftType:        type,
-      quantity:        parseFloat(document.getElementById('gift-qty').value) || 0,
+      quantity:        parseFloat(qty),
+      note:            document.getElementById('gift-note').value.trim(),
       photo:           document.getElementById('gift-photo-b64').value,
       updatedDateTime: nowISO(),
     };

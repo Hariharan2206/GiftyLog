@@ -1,3 +1,3 @@
 [build]
-  command   = "printf 'const GIFTYLOG_WEB_APP_URL = \"%s\";\\n' \"$GIFTYLOG_URL\" > config.js"
+  command   = "printf 'const GIFTYLOG_WEB_APP_URL = \"%s\";\\nconst GIFTYLOG_SECRET = \"%s\";\\n' \"$GIFTYLOG_URL\" \"${GIFTYLOG_SECRET:-}\" > config.js"
   publish   = "."

@@ -122,6 +122,7 @@ async function lsGet(key) {
 const state = {
   events:      [],
   gifts:       [],
+  settings:    {},
   webAppUrl:   '',
   lockEnabled: false,
 };
@@ -134,7 +135,15 @@ async function loadCachedState() {
   }
   state.webAppUrl   = localStorage.getItem('giftylog_url')
     || (typeof GIFTYLOG_WEB_APP_URL !== 'undefined' ? GIFTYLOG_WEB_APP_URL : 'PASTE_YOUR_SCRIPT_URL_HERE');
+  state.secret = typeof GIFTYLOG_SECRET !== 'undefined' ? GIFTYLOG_SECRET : '';
   state.lockEnabled = localStorage.getItem('giftylog_lock') === '1';
+  /* seed PIN from config.js only if no server PIN is cached yet */
+  if (typeof GIFTYLOG_APP_PIN !== 'undefined' && GIFTYLOG_APP_PIN && !localStorage.getItem('giftylog_pin')) {
+    const hashed = await hashPin(String(GIFTYLOG_APP_PIN));
+    localStorage.setItem('giftylog_pin', hashed);
+    state.lockEnabled = true;
+    localStorage.setItem('giftylog_lock', '1');
+  }
 }
 
 async function saveCache() {
@@ -149,7 +158,7 @@ async function apiCall(payload) {
   if (!url || url === 'PASTE_YOUR_SCRIPT_URL_HERE') throw new Error('No backend URL. Go to Settings ⚙️');
   setSyncing(true);
   try {
-    const res  = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+    const res  = await fetch(url, { method: 'POST', body: JSON.stringify({ ...payload, secret: state.secret }) });
     const json = await res.json();
     if (json.error) throw new Error(json.error);
     return json;
@@ -160,16 +169,35 @@ async function apiCall(payload) {
 
 async function loadAll() {
   try {
-    const data   = await apiCall({ action: 'getAll' });
-    state.events = data.events || [];
-    state.gifts  = data.gifts  || [];
+    const data     = await apiCall({ action: 'getAll' });
+    state.events   = data.events   || [];
+    state.gifts    = data.gifts    || [];
+    state.settings = data.settings || {};
     await saveCache();
+    /* apply server settings — overwrites local so all devices stay in sync */
+    if ('pin_hash' in state.settings) {
+      if (state.settings.pin_hash) {
+        localStorage.setItem('giftylog_pin', state.settings.pin_hash);
+      } else {
+        localStorage.removeItem('giftylog_pin');
+      }
+    }
+    if ('lock_enabled' in state.settings) {
+      const on = state.settings.lock_enabled === '1';
+      state.lockEnabled = on;
+      localStorage.setItem('giftylog_lock', on ? '1' : '0');
+    }
     showToast('Synced ✓', 'success');
     return true;
   } catch (err) {
     showToast(err.message, 'error');
     return false;
   }
+}
+
+async function saveSetting(key, value) {
+  await apiCall({ action: 'saveSetting', key, value });
+  state.settings[key] = value;
 }
 
 async function saveEvent(evt) {
