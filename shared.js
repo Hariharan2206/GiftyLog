@@ -26,32 +26,63 @@ function fmt(iso) {
   return isNaN(d.getTime()) ? '—' : d.toLocaleString();
 }
 
+function toInputDate(val) {
+  if (!val) return '';
+  if (typeof val === 'number') {
+    const d = new Date((val - 25569) * 86400 * 1000);
+    return isNaN(d) ? '' : d.toISOString().slice(0, 10);
+  }
+  const s = String(val).trim();
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+async function hashPin(pin) {
+  if (!window.isSecureContext || !crypto.subtle) return pin;
+  const buf  = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('giftylog:' + pin));
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+
 /* ═══════════════════════════════════════════════════════════════
    CRYPTO — AES-GCM 256 via Web Crypto API
+   Falls back to plain JSON when not in a secure context (HTTP non-localhost).
    ═══════════════════════════════════════════════════════════════ */
 let _key = null;
+let _cryptoAvailable = false;
 
 async function initCrypto() {
-  let saltB64 = localStorage.getItem('gl_salt');
-  if (!saltB64) {
-    const s = crypto.getRandomValues(new Uint8Array(16));
-    saltB64 = btoa(String.fromCharCode(...s));
-    localStorage.setItem('gl_salt', saltB64);
+  if (!window.isSecureContext || !crypto.subtle) {
+    _cryptoAvailable = false;
+    return;
   }
-  const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
-  const km = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode('giftylog-aes-2024'), 'PBKDF2', false, ['deriveKey']
-  );
-  _key = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    km,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  );
+  try {
+    let saltB64 = localStorage.getItem('gl_salt');
+    if (!saltB64) {
+      const s = crypto.getRandomValues(new Uint8Array(16));
+      saltB64 = btoa(String.fromCharCode(...s));
+      localStorage.setItem('gl_salt', saltB64);
+    }
+    const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+    const km = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode('giftylog-aes-2024'), 'PBKDF2', false, ['deriveKey']
+    );
+    _key = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+      km,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+    _cryptoAvailable = true;
+  } catch {
+    _cryptoAvailable = false;
+  }
 }
 
 async function _encrypt(plain) {
+  if (!_cryptoAvailable) return plain;
   const iv  = crypto.getRandomValues(new Uint8Array(12));
   const enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, _key, new TextEncoder().encode(plain));
   return btoa(JSON.stringify({
@@ -61,6 +92,7 @@ async function _encrypt(plain) {
 }
 
 async function _decrypt(cipher) {
+  if (!_cryptoAvailable) return cipher;
   try {
     const { iv, d } = JSON.parse(atob(cipher));
     const dec = await crypto.subtle.decrypt(
@@ -100,7 +132,8 @@ async function loadCachedState() {
     state.events = cache.events || [];
     state.gifts  = cache.gifts  || [];
   }
-  state.webAppUrl   = localStorage.getItem('giftylog_url') || 'PASTE_YOUR_SCRIPT_URL_HERE';
+  state.webAppUrl   = localStorage.getItem('giftylog_url')
+    || (typeof GIFTYLOG_WEB_APP_URL !== 'undefined' ? GIFTYLOG_WEB_APP_URL : 'PASTE_YOUR_SCRIPT_URL_HERE');
   state.lockEnabled = localStorage.getItem('giftylog_lock') === '1';
 }
 
@@ -186,29 +219,95 @@ function setSyncing(on) {
 /* ═══════════════════════════════════════════════════════════════
    SIDEBAR
    ═══════════════════════════════════════════════════════════════ */
+let _deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredInstall = e;
+  document.getElementById('btn-install-pwa')?.classList.remove('hidden');
+  document.getElementById('btn-install-sheet')?.classList.remove('hidden');
+});
+window.addEventListener('appinstalled', () => {
+  _deferredInstall = null;
+  document.getElementById('btn-install-pwa')?.classList.add('hidden');
+  document.getElementById('btn-install-sheet')?.classList.add('hidden');
+});
+
 function renderSidebar(active) {
   const mount = document.getElementById('sidebar-mount');
   if (!mount) return;
   const links = [
-    { id: 'overview', href: 'index.html',        icon: '📊', label: 'Overview' },
-    { id: 'events',   href: 'events.html',        icon: '🎉', label: 'Events'   },
-    { id: 'gifts',    href: 'gifts.html',         icon: '🎁', label: 'Gifts'    },
+    { id: 'overview', href: 'index.html',  icon: 'ti-layout-dashboard', label: 'Overview' },
+    { id: 'events',   href: 'events.html', icon: 'ti-calendar-event',   label: 'Events'   },
+    { id: 'gifts',    href: 'gifts.html',  icon: 'ti-gift',             label: 'Gifts'    },
   ];
   mount.innerHTML = `
     <nav id="sidebar">
-      <div class="sidebar-brand">GiftyLog 🎁</div>
+      <div class="sidebar-brand">GiftyLog</div>
       <div class="sidebar-nav">
         ${links.map(l => `
           <a href="${l.href}" class="nav-item${active === l.id ? ' active' : ''}">
-            <span class="nav-icon">${l.icon}</span>${l.label}
+            <span class="nav-icon"><i class="ti ${l.icon}"></i></span>${l.label}
           </a>`).join('')}
       </div>
       <div class="sidebar-bottom">
-        <a href="settings.html" class="nav-item${active === 'settings' ? ' active' : ''}" style="width:100%">
-          <span class="nav-icon">⚙️</span>Settings
+        <!-- Desktop: install + settings stacked -->
+        <button id="btn-install-pwa" class="nav-item sidebar-desktop-only hidden" style="width:100%;background:none;text-align:left">
+          <span class="nav-icon"><i class="ti ti-download"></i></span>Install App
+        </button>
+        <a href="settings.html" class="nav-item sidebar-desktop-only${active === 'settings' ? ' active' : ''}" style="width:100%">
+          <span class="nav-icon"><i class="ti ti-settings"></i></span>Settings
         </a>
+        <!-- Mobile: single More button -->
+        <button id="btn-more" class="nav-item sidebar-mobile-only">
+          <span class="nav-icon"><i class="ti ti-dots"></i></span>More
+        </button>
       </div>
     </nav>`;
+
+  document.getElementById('btn-install-pwa')?.addEventListener('click', _triggerInstall);
+  if (_deferredInstall) document.getElementById('btn-install-pwa')?.classList.remove('hidden');
+  document.getElementById('btn-more')?.addEventListener('click', openMoreSheet);
+}
+
+async function _triggerInstall() {
+  if (!_deferredInstall) return;
+  _deferredInstall.prompt();
+  const { outcome } = await _deferredInstall.userChoice;
+  if (outcome === 'accepted') {
+    _deferredInstall = null;
+    document.getElementById('btn-install-pwa')?.classList.add('hidden');
+    document.getElementById('btn-install-sheet')?.classList.add('hidden');
+  }
+}
+
+function openMoreSheet() {
+  document.getElementById('gl-more-backdrop')?.classList.add('open');
+  document.getElementById('gl-more-sheet')?.classList.add('open');
+}
+
+function closeMoreSheet() {
+  document.getElementById('gl-more-backdrop')?.classList.remove('open');
+  document.getElementById('gl-more-sheet')?.classList.remove('open');
+}
+
+function injectMoreSheet(active) {
+  if (document.getElementById('gl-more-sheet')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="gl-more-backdrop"></div>
+    <div id="gl-more-sheet">
+      <div class="more-sheet-handle"></div>
+      <div class="more-sheet-title">More options</div>
+      <a href="settings.html" class="more-sheet-item${active === 'settings' ? ' active' : ''}">
+        <i class="ti ti-settings"></i>Settings
+      </a>
+      <button id="btn-install-sheet" class="more-sheet-item hidden">
+        <i class="ti ti-download"></i>Install App
+      </button>
+    </div>`);
+
+  document.getElementById('gl-more-backdrop').addEventListener('click', closeMoreSheet);
+  document.getElementById('btn-install-sheet').addEventListener('click', () => { closeMoreSheet(); _triggerInstall(); });
+  if (_deferredInstall) document.getElementById('btn-install-sheet')?.classList.remove('hidden');
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -262,17 +361,48 @@ function confirmDelete(msg, cb) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   INACTIVITY AUTO-LOCK
+   ═══════════════════════════════════════════════════════════════ */
+let _inactivityTimer = null;
+const INACTIVITY_MS  = 2 * 60 * 1000;
+
+function _resetInactivityTimer() {
+  if (!state.lockEnabled || !localStorage.getItem('giftylog_pin')) return;
+  if (!sessionStorage.getItem('gl_unlocked')) return;
+  clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(() => {
+    sessionStorage.removeItem('gl_unlocked');
+    showPinOverlay();
+  }, INACTIVITY_MS);
+}
+
+function _startInactivityTimer() {
+  if (!state.lockEnabled || !localStorage.getItem('giftylog_pin')) return;
+  ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(ev => {
+    document.addEventListener(ev, _resetInactivityTimer, { passive: true });
+  });
+  _resetInactivityTimer();
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PIN OVERLAY
    ═══════════════════════════════════════════════════════════════ */
 let _pinEntry = '';
 
+function _pinKeyHandler(e) {
+  if (document.getElementById('gl-pin')?.classList.contains('hidden')) return;
+  if (e.key >= '0' && e.key <= '9') _handleKey(e.key);
+  else if (e.key === 'Backspace') _handleKey('back');
+}
+
 function showPinOverlay() {
   _pinEntry = '';
+  clearTimeout(_inactivityTimer);
   let el = document.getElementById('gl-pin');
   if (!el) {
     document.body.insertAdjacentHTML('beforeend', `
       <div id="gl-pin">
-        <div class="pin-brand">GiftyLog 🎁</div>
+        <div class="pin-brand">GiftyLog</div>
         <div class="pin-prompt">Enter your 4-digit PIN</div>
         <div class="pin-dots">
           <div class="pin-dot" id="pd0"></div>
@@ -297,6 +427,7 @@ function showPinOverlay() {
         <div class="pin-error" id="gl-pin-error"></div>
       </div>`);
     document.querySelectorAll('.key-btn[data-k]').forEach(b => b.addEventListener('click', () => _handleKey(b.dataset.k)));
+    document.addEventListener('keydown', _pinKeyHandler);
   }
   document.getElementById('gl-pin').classList.remove('hidden');
   _updateDots();
@@ -306,13 +437,17 @@ function _updateDots() {
   for (let i = 0; i < 4; i++) document.getElementById(`pd${i}`)?.classList.toggle('filled', i < _pinEntry.length);
 }
 
-function _handleKey(k) {
+async function _handleKey(k) {
   if (k === 'back') _pinEntry = _pinEntry.slice(0, -1);
   else if (_pinEntry.length < 4) _pinEntry += k;
   _updateDots();
   if (_pinEntry.length === 4) {
-    if (_pinEntry === localStorage.getItem('giftylog_pin')) {
+    const stored = localStorage.getItem('giftylog_pin');
+    const hashed = await hashPin(_pinEntry);
+    if (hashed === stored) {
+      sessionStorage.setItem('gl_unlocked', '1');
       document.getElementById('gl-pin').classList.add('hidden');
+      _startInactivityTimer();
     } else {
       document.getElementById('gl-pin-error').textContent = 'Incorrect PIN. Try again.';
       setTimeout(() => { _pinEntry = ''; _updateDots(); document.getElementById('gl-pin-error').textContent = ''; }, 800);
@@ -320,9 +455,6 @@ function _handleKey(k) {
   }
 }
 
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && state.lockEnabled && localStorage.getItem('giftylog_pin')) showPinOverlay();
-});
 
 /* ═══════════════════════════════════════════════════════════════
    PHOTO COMPRESSION
@@ -379,14 +511,47 @@ function setupPhotoInput({ inputId, previewId, b64Id, clearBtnId }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   DARK MODE TOGGLE
+   ═══════════════════════════════════════════════════════════════ */
+function injectDarkToggle() {
+  const saved = localStorage.getItem('gl_theme');
+  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  document.body.insertAdjacentHTML('beforeend', `
+    <button id="gl-dark-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <i class="ti ${saved === 'dark' ? 'ti-sun' : 'ti-moon'}" id="gl-dark-icon"></i>
+    </button>`);
+  document.getElementById('gl-dark-toggle').addEventListener('click', () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('gl_theme', 'light');
+      document.getElementById('gl-dark-icon').className = 'ti ti-moon';
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('gl_theme', 'dark');
+      document.getElementById('gl-dark-icon').className = 'ti ti-sun';
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
    INIT — call on every page
    ═══════════════════════════════════════════════════════════════ */
 async function initApp(activePage) {
+  /* apply saved theme before anything renders to avoid flash */
+  if (localStorage.getItem('gl_theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+
   document.body.insertAdjacentHTML('beforeend', `
     <div id="gl-toast" class="gl-toast"></div>
     <div id="gl-sync"  class="gl-sync"><span class="spinner"></span> Syncing…</div>`);
   await initCrypto();
   await loadCachedState();
   renderSidebar(activePage);
-  if (state.lockEnabled && localStorage.getItem('giftylog_pin')) showPinOverlay();
+  injectMoreSheet(activePage);
+  injectDarkToggle();
+  if (state.lockEnabled && localStorage.getItem('giftylog_pin') && !sessionStorage.getItem('gl_unlocked')) {
+    showPinOverlay();
+  } else {
+    _startInactivityTimer();
+  }
 }

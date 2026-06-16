@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#4F46E5" />
+  <meta name="theme-color" content="#2CA6A4" />
   <title>Events — GiftyLog</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="shared.css" />
@@ -110,6 +110,7 @@
   </div>
 </div>
 
+<script src="config.js"></script>
 <script src="shared.js"></script>
 <script>
 (async () => {
@@ -170,11 +171,11 @@
 
   /* ── Event modal ── */
   function openEventModal(evt = null) {
-    document.getElementById('evt-id').value    = evt?.id    || '';
+    document.getElementById('evt-id').value    = evt?.id        || '';
     document.getElementById('evt-name').value  = evt?.eventName || '';
-    document.getElementById('evt-venue').value = evt?.venue || '';
-    document.getElementById('evt-place').value = evt?.place || '';
-    document.getElementById('evt-date').value  = evt?.date  || '';
+    document.getElementById('evt-venue').value = evt?.venue     || '';
+    document.getElementById('evt-place').value = evt?.place     || '';
+    document.getElementById('evt-date').value  = toInputDate(evt?.date);
     document.getElementById('modal-event-title').textContent = evt ? 'Edit Event' : 'Add Event';
     openModal('modal-event');
   }
