@@ -1,0 +1,3 @@
+[build]
+  command   = "printf 'const GIFTYLOG_WEB_APP_URL = \"%s\";\\n' \"$GIFTYLOG_URL\" > config.js"
+  publish   = "."
