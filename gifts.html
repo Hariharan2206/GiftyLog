@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#2CA6A4" />
   <title>Gifts — GiftyLog</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="stylesheet" href="shared.css" />
   <style>
     /* Purple accent theme for Gifts — visually distinct from Emerald Events */
@@ -78,7 +79,7 @@
 
       <div class="search-wrap">
         <span class="search-icon"><i class="ti ti-search"></i></span>
-        <input class="search-input" id="search" placeholder="Search by gifter, type, or event…" type="search" />
+        <input class="search-input" id="search" placeholder="Search by name, address…" type="search" />
       </div>
 
       <div class="filter-bar" id="filter-bar"></div>
@@ -174,14 +175,12 @@
     let gifts = [...state.gifts];
 
     if (activeFilter !== 'All') gifts = gifts.filter(g => g.giftType === activeFilter);
-    if (q) gifts = gifts.filter(g => {
-      const evt = state.events.find(e => e.id === g.eventId);
-      return (
-        (g.gifterName || '').toLowerCase().includes(q) ||
-        (g.giftType   || '').toLowerCase().includes(q) ||
-        (evt ? evt.eventName.toLowerCase().includes(q) : false)
-      );
-    });
+    if (q) {
+      const parts = q.split(',').map(p => p.trim()).filter(Boolean);
+      const [namePart, addrPart] = parts;
+      gifts = gifts.filter(g => (g.gifterName || '').toLowerCase().includes(namePart));
+      if (addrPart) gifts = gifts.filter(g => (g.address || '').toLowerCase().includes(addrPart));
+    }
 
     gifts.sort((a, b) => new Date(b.updatedDateTime) - new Date(a.updatedDateTime));
 
@@ -196,14 +195,14 @@
       const emoji = GIFT_EMOJI[g.giftType] || '🎁';
       const thumb = g.photo
         ? `<div class="gift-thumb"><img src="${g.photo}" alt="gift" loading="lazy" /></div>`
-        : `<div class="gift-thumb">${emoji}</div>`;
+        : `<div class="gift-thumb" style="${giftTypeThumbStyle(g.giftType)}">${emoji}</div>`;
       return `
-        <div class="gift-row">
+        <div class="gift-row" style="${giftTypeCardStyle(g.giftType)}">
           ${thumb}
           <div class="gift-row-info">
             <div class="gift-row-name">${esc(g.gifterName)}</div>
             <div class="gift-row-tags">
-              <span class="badge badge-${esc(g.giftType || 'Other')}">${esc(g.giftType || 'Other')}</span>
+              <span class="badge" style="${giftTypeBadgeStyle(g.giftType)}">${esc(g.giftType || 'Other')}</span>
               ${evt ? `<span class="event-tag" data-event-href="event-detail.html?id=${esc(evt.id)}">🎉 ${esc(evt.eventName)}</span>` : ''}
             </div>
             <div class="gift-row-meta">
@@ -229,6 +228,8 @@
   });
 
   document.getElementById('search').addEventListener('input', renderGifts);
+
+  setupGifterSearch({ inputId: 'search', getGifts: () => state.gifts });
 
   document.getElementById('gifts-list').addEventListener('click', e => {
     const href = e.target.closest('[data-event-href]')?.dataset.eventHref;

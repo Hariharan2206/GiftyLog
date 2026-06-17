@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#2CA6A4" />
   <title>Event Detail — GiftyLog</title>
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="stylesheet" href="shared.css" />
   <style>
     .event-header {
       background: var(--card);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      overflow: hidden;
       margin-bottom: 20px;
     }
     .event-header-accent { height: 5px; background: var(--emerald); }
@@ -23,18 +23,21 @@
     .event-meta span     { display: flex; align-items: center; gap: 5px; }
     .event-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
-    .gifts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+    .gifts-list { display: flex; flex-direction: column; gap: 10px; }
 
-    .gift-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); display: flex; gap: 14px; }
-    .gift-info { flex: 1; min-width: 0; }
-    .gift-name { font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-    .gift-meta { font-size: .78rem; color: var(--text-muted); line-height: 1.7; margin-top: 6px; }
-    .gift-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .gift-row { background: var(--card); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px; transition: box-shadow .15s; }
+    .gift-row:hover { box-shadow: var(--shadow-lg); }
+    .gift-row-info    { flex: 1; min-width: 0; }
+    .gift-row-name    { font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .gift-row-tags    { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+    .gift-row-meta    { font-size: .78rem; color: var(--text-muted); }
+    .gift-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
     .detail-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 
     @media (max-width: 480px) {
-      .gifts-grid { grid-template-columns: 1fr; }
+      .gift-row { flex-wrap: wrap; }
+      .gift-row-actions { width: 100%; justify-content: flex-end; }
       .event-header-top { flex-direction: column; }
     }
   </style>
@@ -71,10 +74,11 @@
 
       <div class="search-wrap">
         <span class="search-icon"><i class="ti ti-search"></i></span>
-        <input class="search-input" id="search" placeholder="Search gifts…" type="search" />
+        <input class="search-input" id="search" placeholder="Search by gifter name…" type="search" />
       </div>
       <div class="filter-bar" id="filter-bar"></div>
-      <div class="gifts-grid" id="gifts-grid"></div>
+      <div class="gifts-list" id="gifts-grid"></div>
+
     </div>
   </main>
 </div>
@@ -121,13 +125,15 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="gift-id" />
-      <div class="form-group">
+      <div class="form-group" style="position:relative">
         <label class="form-label">Gifter Name *</label>
-        <input class="form-control" id="gift-gifter"   type="text" placeholder="Full name" />
+        <input class="form-control" id="gift-gifter" type="text" placeholder="Full name" autocomplete="off" />
+        <div id="gift-gifter-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--card);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:600;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="position:relative">
         <label class="form-label">Address</label>
-        <textarea class="form-control" id="gift-address" placeholder="Street, City, State…"></textarea>
+        <textarea class="form-control" id="gift-address" placeholder="Street, City, State…" autocomplete="off" rows="2"></textarea>
+        <div id="gift-address-dropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--card);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:600;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
       </div>
       <div class="form-group" style="position:relative">
         <label class="form-label">Gift Type *</label>
@@ -204,11 +210,7 @@
 
     let gifts = state.gifts.filter(g => g.eventId === eventId);
     if (activeFilter !== 'All') gifts = gifts.filter(g => g.giftType === activeFilter);
-    if (q) gifts = gifts.filter(g =>
-      (g.gifterName || '').toLowerCase().includes(q) ||
-      (g.giftType   || '').toLowerCase().includes(q) ||
-      (g.address    || '').toLowerCase().includes(q)
-    );
+    if (q) gifts = gifts.filter(g => (g.gifterName || '').toLowerCase().includes(q));
 
     const grid = document.getElementById('gifts-grid');
     if (!gifts.length) {
@@ -219,23 +221,24 @@
       const emoji = GIFT_EMOJI[g.giftType] || '🎁';
       const thumb = g.photo
         ? `<div class="gift-thumb"><img src="${g.photo}" alt="gift" loading="lazy" /></div>`
-        : `<div class="gift-thumb">${emoji}</div>`;
+        : `<div class="gift-thumb" style="${giftTypeThumbStyle(g.giftType)}">${emoji}</div>`;
       return `
-        <div class="gift-card">
+        <div class="gift-row" style="${giftTypeCardStyle(g.giftType)}">
           ${thumb}
-          <div class="gift-info">
-            <div class="gift-name">${esc(g.gifterName)}</div>
-            <span class="badge badge-${esc(g.giftType || 'Other')}">${esc(g.giftType || 'Other')}</span>
-            <div class="gift-meta">
-              ${g.quantity  ? `<div>Qty: <b>${g.quantity}</b></div>` : ''}
-              ${g.address   ? `<div>📍 ${esc(g.address)}</div>` : ''}
-              ${g.note      ? `<div>📝 ${esc(g.note)}</div>` : ''}
-              <div>🕐 ${fmt(g.updatedDateTime)}</div>
+          <div class="gift-row-info">
+            <div class="gift-row-name">${esc(g.gifterName)}</div>
+            <div class="gift-row-tags">
+              <span class="badge" style="${giftTypeBadgeStyle(g.giftType)}">${esc(g.giftType || 'Other')}</span>
             </div>
-            <div class="gift-actions">
-              <button class="btn btn-primary btn-sm" data-edit-gift="${esc(g.id)}"><i class="ti ti-pencil"></i> Edit</button>
-              <button class="btn btn-rose  btn-sm" data-del-gift="${esc(g.id)}"><i class="ti ti-trash"></i></button>
+            <div class="gift-row-meta">
+              ${g.quantity ? `Qty: <b>${g.quantity}</b> · ` : ''}${fmt(g.updatedDateTime)}
+              ${g.address  ? ` · 📍 ${esc(g.address)}` : ''}
+              ${g.note     ? ` · 📝 ${esc(g.note)}` : ''}
             </div>
+          </div>
+          <div class="gift-row-actions">
+            <button class="btn btn-primary btn-sm" data-edit-gift="${esc(g.id)}"><i class="ti ti-pencil"></i></button>
+            <button class="btn btn-rose    btn-sm" data-del-gift="${esc(g.id)}"><i class="ti ti-trash"></i></button>
           </div>
         </div>`;
     }).join('');
@@ -331,6 +334,77 @@
   document.addEventListener('click', e => {
     if (!_typeInput.contains(e.target) && !_typeDrop.contains(e.target))
       _typeDrop.style.display = 'none';
+  });
+
+  /* ── Gifter name + address autocomplete ── */
+  const _gifterInput = document.getElementById('gift-gifter');
+  const _gifterDrop  = document.getElementById('gift-gifter-dropdown');
+  const _addrInput   = document.getElementById('gift-address');
+  const _addrDrop    = document.getElementById('gift-address-dropdown');
+
+  function _makeDropdown(drop, items, onPick) {
+    if (!items.length) { drop.style.display = 'none'; return; }
+    drop.innerHTML = items.map(v =>
+      `<div class="type-opt" data-val="${esc(v)}" style="padding:9px 14px;cursor:pointer;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v)}</div>`
+    ).join('');
+    drop.style.display = 'block';
+    drop.addEventListener('mousedown', function handler(e) {
+      const opt = e.target.closest('.type-opt');
+      if (!opt) return;
+      e.preventDefault();
+      onPick(opt.dataset.val);
+      drop.style.display = 'none';
+      drop.removeEventListener('mousedown', handler);
+    }, { once: false });
+    drop.addEventListener('mouseover', e => { const o = e.target.closest('.type-opt'); if (o) o.style.background = 'var(--surface)'; });
+    drop.addEventListener('mouseout',  e => { const o = e.target.closest('.type-opt'); if (o) o.style.background = ''; });
+  }
+
+  function _uniqueGifters() {
+    /* unique records keyed by name+address so same name from different cities both appear */
+    const map = new Map();
+    for (const g of state.gifts) {
+      const key = `${(g.gifterName||'').toLowerCase()}|${(g.address||'').toLowerCase()}`;
+      if (g.gifterName && !map.has(key)) map.set(key, { name: g.gifterName, address: g.address || '' });
+    }
+    return [...map.values()];
+  }
+
+  _gifterInput.addEventListener('input', () => {
+    const q = _gifterInput.value.trim().toLowerCase();
+    const matches = _uniqueGifters().filter(r => r.name.toLowerCase().includes(q));
+    if (!matches.length) { _gifterDrop.style.display = 'none'; return; }
+    _gifterDrop.innerHTML = matches.map(r => `
+      <div class="type-opt" data-name="${esc(r.name)}" data-addr="${esc(r.address)}"
+           style="padding:8px 14px;cursor:pointer;line-height:1.3">
+        <div style="font-size:.9rem;font-weight:600">${esc(r.name)}</div>
+        ${r.address ? `<div style="font-size:.75rem;color:var(--text-muted)">📍 ${esc(r.address)}</div>` : ''}
+      </div>`).join('');
+    _gifterDrop.style.display = 'block';
+    _gifterDrop.querySelectorAll('.type-opt').forEach(opt => {
+      opt.addEventListener('mouseover', () => opt.style.background = 'var(--surface)');
+      opt.addEventListener('mouseout',  () => opt.style.background = '');
+      opt.addEventListener('mousedown', e => {
+        e.preventDefault();
+        _gifterInput.value = opt.dataset.name;
+        _addrInput.value   = opt.dataset.addr;
+        _gifterDrop.style.display = 'none';
+      });
+    });
+  });
+  _gifterInput.addEventListener('focus', () => _gifterInput.dispatchEvent(new Event('input')));
+
+  _addrInput.addEventListener('input', () => {
+    const q = _addrInput.value.trim().toLowerCase();
+    const allAddrs = [...new Set(state.gifts.map(g => g.address).filter(Boolean))];
+    const matches  = allAddrs.filter(a => a.toLowerCase().includes(q));
+    _makeDropdown(_addrDrop, matches, val => { _addrInput.value = val; });
+  });
+  _addrInput.addEventListener('focus', () => _addrInput.dispatchEvent(new Event('input')));
+
+  document.addEventListener('click', e => {
+    if (!_gifterInput.contains(e.target) && !_gifterDrop.contains(e.target)) _gifterDrop.style.display = 'none';
+    if (!_addrInput.contains(e.target)   && !_addrDrop.contains(e.target))   _addrDrop.style.display   = 'none';
   });
 
   function openGiftModal(gift = null) {

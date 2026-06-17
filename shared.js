@@ -6,7 +6,85 @@
 const uuid    = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
 const nowISO  = () => new Date().toISOString();
 const esc     = s  => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const GIFT_EMOJI = { Cash:'💵', Kind:'🎀', Gold:'🥇', Silver:'🥈', Electronics:'📱', Other:'🎁' };
+/* ── Gift type emoji — keyword matched, fallback by hash ── */
+const _EMOJI_KEYWORDS = [
+  { keys:['cash','money','rupee','inr','dollar','currency'],       emoji:'💵' },
+  { keys:['gold'],                                                  emoji:'🥇' },
+  { keys:['silver'],                                               emoji:'🥈' },
+  { keys:['electronic','phone','mobile','laptop','computer','gadget','device'], emoji:'📱' },
+  { keys:['toy','toys','doll','lego','game','play'],               emoji:'🧸' },
+  { keys:['dress','cloth','clothes','clothing','wear','saree','shirt','suit','fabric','textile'], emoji:'👗' },
+  { keys:['jewel','jewelry','jewellery','ring','necklace','bangle','chain','bracelet'], emoji:'💍' },
+  { keys:['sweet','sweets','food','cake','chocolate','snack'],     emoji:'🍬' },
+  { keys:['book','books'],                                         emoji:'📚' },
+  { keys:['watch','clock'],                                        emoji:'⌚' },
+  { keys:['bag','purse','handbag'],                                emoji:'👜' },
+  { keys:['shoe','shoes','footwear','sandal','chappal'],           emoji:'👟' },
+  { keys:['cosmetic','makeup','perfume','beauty'],                 emoji:'💄' },
+  { keys:['utensil','vessel','cookware','kitchen','steel'],        emoji:'🍳' },
+  { keys:['furniture','sofa','bed','chair','table'],               emoji:'🪑' },
+  { keys:['kind','gift','present','item'],                         emoji:'🎀' },
+];
+const _EMOJI_FALLBACK = ['🎁','🎊','🎉','🛍️','✨','🌟','💝','🎈'];
+
+function giftTypeEmoji(type) {
+  if (!type) return '🎁';
+  const lower = type.toLowerCase();
+  for (const { keys, emoji } of _EMOJI_KEYWORDS)
+    if (keys.some(k => lower.includes(k))) return emoji;
+  let h = 0;
+  for (let i = 0; i < type.length; i++) h = (h * 2654435761 + type.charCodeAt(i)) >>> 0;
+  return _EMOJI_FALLBACK[h % _EMOJI_FALLBACK.length];
+}
+
+/* ── Deterministic badge colors — one unique color per type ── */
+const _TYPE_PALETTE = [
+  { bg:'#D1FAE5', text:'#065F46', border:'#10B981' },
+  { bg:'#EDE9FE', text:'#4C1D95', border:'#8B5CF6' },
+  { bg:'#FEF3C7', text:'#92400E', border:'#F59E0B' },
+  { bg:'#DBEAFE', text:'#1E40AF', border:'#3B82F6' },
+  { bg:'#FCE7F3', text:'#9D174D', border:'#EC4899' },
+  { bg:'#FEE2E2', text:'#991B1B', border:'#EF4444' },
+  { bg:'#FFF7ED', text:'#9A3412', border:'#F97316' },
+  { bg:'#ECFDF5', text:'#065F46', border:'#34D399' },
+  { bg:'#F0F9FF', text:'#0C4A6E', border:'#38BDF8' },
+  { bg:'#FDF4FF', text:'#6B21A8', border:'#C084FC' },
+  { bg:'#FFF1F2', text:'#881337', border:'#FB7185' },
+  { bg:'#F0FDF4', text:'#14532D', border:'#4ADE80' },
+  { bg:'#FFFBEB', text:'#78350F', border:'#FCD34D' },
+  { bg:'#EFF6FF', text:'#1E3A8A', border:'#60A5FA' },
+  { bg:'#FDF2F8', text:'#831843', border:'#F472B6' },
+  { bg:'#F5F3FF', text:'#3B0764', border:'#A78BFA' },
+  { bg:'#ECFEFF', text:'#164E63', border:'#22D3EE' },
+  { bg:'#F7FEE7', text:'#365314', border:'#A3E635' },
+  { bg:'#FEF9C3', text:'#713F12', border:'#FACC15' },
+  { bg:'#F8FAFC', text:'#0F172A', border:'#64748B' },
+];
+
+/* assign stable index per unique type seen this session */
+const _typeColorMap = {};
+let   _typeColorNext = 0;
+function giftTypeColor(type) {
+  if (!type) type = 'Other';
+  if (_typeColorMap[type] === undefined)
+    _typeColorMap[type] = _typeColorNext++ % _TYPE_PALETTE.length;
+  return _TYPE_PALETTE[_typeColorMap[type]];
+}
+
+function giftTypeBadgeStyle(type) {
+  const c = giftTypeColor(type);
+  return `background:${c.bg};color:${c.text};border:1px solid ${c.border}`;
+}
+function giftTypeCardStyle(type) {
+  const c = giftTypeColor(type);
+  return `border-left:4px solid ${c.border}`;
+}
+function giftTypeThumbStyle(type) {
+  const c = giftTypeColor(type);
+  return `background:${c.bg}`;
+}
+
+const GIFT_EMOJI = new Proxy({}, { get: (_, t) => giftTypeEmoji(t) });
 
 function fmtDate(val) {
   if (!val) return '—';
@@ -57,9 +135,6 @@ const state = {
   lockEnabled: false,
 };
 
-/* clean up old encrypted cache keys from previous version */
-localStorage.removeItem('gl_cache');
-localStorage.removeItem('gl_salt');
 
 function loadCachedState() {
   state.webAppUrl   = typeof GIFTYLOG_WEB_APP_URL !== 'undefined' ? GIFTYLOG_WEB_APP_URL : '';
@@ -73,6 +148,93 @@ function loadCachedState() {
       state.lockEnabled = true;
     });
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GIFTER INSIGHT POPUP
+   ═══════════════════════════════════════════════════════════════ */
+function setupGifterSearch({ inputId, getGifts }) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  /* inject floating panel once into body */
+  let popup = document.getElementById('gifter-insight');
+  if (!popup) {
+    popup = document.createElement('div');
+    popup.id = 'gifter-insight';
+    popup.className = 'gifter-insight hidden';
+    document.body.appendChild(popup);
+  }
+
+  function hide() { popup.classList.add('hidden'); }
+
+  function show(q) {
+    if (!q || q.length < 2) { hide(); return; }
+    const parts    = q.split(',').map(p => p.trim()).filter(Boolean);
+    const namePart = parts[0] || '';
+    const addrPart = parts[1] || '';
+    const pool     = getGifts();
+    let matched    = namePart ? pool.filter(g => (g.gifterName || '').toLowerCase().includes(namePart)) : [...pool];
+    if (addrPart)  matched = matched.filter(g => (g.address || '').toLowerCase().includes(addrPart));
+    if (!matched.length) { hide(); return; }
+
+    /* distinct persons by name+address */
+    const persons = [...new Map(matched.map(g =>
+      [`${(g.gifterName||'').toLowerCase()}|${(g.address||'').toLowerCase()}`, g]
+    )).values()];
+    if (persons.length !== 1) { hide(); return; }
+
+    const person = persons[0];
+    const byType = {};
+    for (const g of matched) {
+      const t = g.giftType || 'Other';
+      if (!byType[t]) byType[t] = { count: 0, qty: 0 };
+      byType[t].count++;
+      byType[t].qty += parseFloat(g.quantity) || 0;
+    }
+    const types     = Object.entries(byType).sort((a, b) => b[1].qty - a[1].qty);
+    const maxQty    = Math.max(...types.map(([,v]) => v.qty), 1);
+    const cashTotal = byType['Cash']?.qty || 0;
+
+    popup.innerHTML = `
+      <div class="gi-header">
+        <div>
+          <div class="gi-name">${esc(person.gifterName)}</div>
+          ${person.address ? `<div class="gi-address">📍 ${esc(person.address)}</div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="gi-count">${matched.length} gift${matched.length !== 1 ? 's' : ''}</span>
+          <button class="gi-close" onclick="document.getElementById('gifter-insight').classList.add('hidden')">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+      </div>
+      ${cashTotal ? `<div class="gi-cash">💰 Total Cash: <b>₹${cashTotal.toLocaleString('en-IN')}</b></div>` : ''}
+      <div class="gi-rows">
+        ${types.map(([type, { count, qty }]) => {
+          const pct = Math.round((qty / maxQty) * 100) || 8;
+          const em  = giftTypeEmoji(type);
+          const c   = giftTypeColor(type);
+          return `
+            <div class="gi-row">
+              <span class="gi-type-label">
+                <span class="gi-emoji">${em}</span>
+                <span class="gi-type-name">${esc(type)}</span>
+                <span class="gi-type-count">${count}</span>
+              </span>
+              <div class="gi-bar-wrap">
+                <div class="gi-bar" style="width:${pct}%;background:${c.border}"></div>
+              </div>
+              <span class="gi-qty" style="color:${c.border}">${qty > 0 ? qty.toLocaleString('en-IN') : '—'}</span>
+            </div>`;
+        }).join('')}
+      </div>`;
+    popup.classList.remove('hidden');
+  }
+
+  input.addEventListener('input',  () => show(input.value.trim().toLowerCase()));
+  input.addEventListener('focus',  () => show(input.value.trim().toLowerCase()));
+  input.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -92,7 +254,11 @@ async function apiCall(payload) {
   }
 }
 
+function _showLoading() { document.getElementById('gl-loading')?.classList.add('show'); }
+function _hideLoading() { document.getElementById('gl-loading')?.classList.remove('show'); }
+
 async function loadAll() {
+  _showLoading();
   try {
     const data     = await apiCall({ action: 'getAll' });
     state.events   = data.events   || [];
@@ -108,13 +274,17 @@ async function loadAll() {
       state.lockEnabled = on;
       localStorage.setItem('giftylog_lock', on ? '1' : '0');
     }
-    /* show PIN overlay if lock is on and session not yet unlocked */
+    /* pre-seed type colors alphabetically so they're stable across reloads */
+    [...new Set(state.gifts.map(g => g.giftType).filter(Boolean))].sort()
+      .forEach(t => giftTypeColor(t));
+    _hideLoading();
+    /* show PIN overlay AFTER data is loaded so pages render correctly behind it */
     if (state.lockEnabled && localStorage.getItem('giftylog_pin') && !sessionStorage.getItem('gl_unlocked')) {
       showPinOverlay();
-      return true;
     }
     return true;
   } catch (err) {
+    _hideLoading();
     showToast(err.message, 'error');
     return false;
   }
@@ -191,7 +361,7 @@ function renderSidebar(active) {
   ];
   mount.innerHTML = `
     <nav id="sidebar">
-      <div class="sidebar-brand">GiftyLog</div>
+      <a href="index.html" class="sidebar-brand" style="text-decoration:none;display:flex;align-items:center;gap:6px"><i class="ti ti-gift" style="font-size:1.2rem"></i>GiftyLog</a>
       <div class="sidebar-nav">
         ${links.map(l => `
           <a href="${l.href}" class="nav-item${active === l.id ? ' active' : ''}">
@@ -504,8 +674,14 @@ async function initApp(activePage) {
   if (localStorage.getItem('gl_theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 
   document.body.insertAdjacentHTML('beforeend', `
-    <div id="gl-toast" class="gl-toast"></div>
-    <div id="gl-sync"  class="gl-sync"><span class="spinner"></span> Syncing…</div>`);
+    <div id="gl-toast"    class="gl-toast"></div>
+    <div id="gl-sync"     class="gl-sync"><span class="spinner"></span> Syncing…</div>
+    <div id="gl-loading"  class="gl-loading">
+      <div class="gl-loading-box">
+        <div class="gl-loading-spinner"></div>
+        <div class="gl-loading-text">Loading…</div>
+      </div>
+    </div>`);
   loadCachedState();
   renderSidebar(activePage);
   injectMoreSheet(activePage);
