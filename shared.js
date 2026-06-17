@@ -129,27 +129,23 @@ async function saveEvent(evt) {
   await apiCall({ action: 'saveEvent', event: evt });
   const idx = state.events.findIndex(e => e.id === evt.id);
   if (idx >= 0) state.events[idx] = evt; else state.events.push(evt);
-  await saveCache();
 }
 
 async function deleteEvent(id) {
   await apiCall({ action: 'deleteEvent', id });
   state.events = state.events.filter(e => e.id !== id);
   state.gifts  = state.gifts.filter(g => g.eventId !== id);
-  await saveCache();
 }
 
 async function saveGift(gift) {
   await apiCall({ action: 'saveGift', gift });
   const idx = state.gifts.findIndex(g => g.id === gift.id);
   if (idx >= 0) state.gifts[idx] = gift; else state.gifts.push(gift);
-  await saveCache();
 }
 
 async function deleteGift(id) {
   await apiCall({ action: 'deleteGift', id });
   state.gifts = state.gifts.filter(g => g.id !== id);
-  await saveCache();
 }
 
 /* ═══════════════════════════════════════════════════════════════
